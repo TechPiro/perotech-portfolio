@@ -1,0 +1,13 @@
+PeroTech — AI Video Automation Blueprint
+========================================
+
+A sample downloadable file attached to a blog post. Replace this with your own
+resources: PDFs, scripts, prompt packs, project files, etc.
+
+1. Capture brief  ->  2. Generate script  ->  3. Render shots  ->  4. Edit  ->  5. Deliver
+
+Prompt starter:
+"You are a senior motion designer. Turn the following client brief into a 30s
+ad storyboard with scene-by-scene direction, on-screen text, and pacing."
+
+— PeroTech

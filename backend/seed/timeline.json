@@ -1,0 +1,44 @@
+[
+  {
+    "id": "feedhive",
+    "name": "FeedHive",
+    "subtitle": "Launched FeedHive",
+    "date": "February 2021",
+    "icon": "assets/img/projects/feedhive-logo.webp"
+  },
+  {
+    "id": "linkdrip",
+    "name": "LinkDrip",
+    "subtitle": "Launched LinkDrip",
+    "date": "October 2022",
+    "icon": "assets/img/projects/linkdrip-logo.webp"
+  },
+  {
+    "id": "tinykiwi",
+    "name": "TinyKiwi",
+    "subtitle": "Acquired TinyKiwi",
+    "date": "January 2023",
+    "icon": "assets/img/projects/tinykiwi-logo.webp"
+  },
+  {
+    "id": "aidbase",
+    "name": "Aidbase",
+    "subtitle": "Launched Aidbase",
+    "date": "November 2023",
+    "icon": "assets/img/projects/aidbase-logo.webp"
+  },
+  {
+    "id": "founderstack",
+    "name": "FounderStack",
+    "subtitle": "Launched FounderStack",
+    "date": "November 2024",
+    "icon": "assets/img/projects/founderstack-icon.webp"
+  },
+  {
+    "id": "signupgate",
+    "name": "SignupGate",
+    "subtitle": "Launched SignupGate",
+    "date": "September 2025",
+    "icon": "assets/img/projects/signupgate-logo.webp"
+  }
+]

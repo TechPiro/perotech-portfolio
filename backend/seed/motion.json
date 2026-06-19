@@ -1,0 +1,68 @@
+[
+  {
+    "id": "techflow-launch",
+    "title": "Slake Ads Launch",
+    "client": "Slake Cold Iced Tea Inc.",
+    "category": "Ads",
+    "type": "mp4",
+    "src": "assets/uploads/1781731738152-iced-tea-portfolio-3mb.mp4",
+    "thumb": "assets/uploads/1781732102090-frame-33.png",
+    "duration": "0:15",
+    "description": "A punchy 30-second product launch ad with kinetic typography and 3D product reveals, produced for Slake's Commercial announcement."
+  },
+  {
+    "id": "nova-bank-explainer",
+    "title": "Mettle Builder Ads",
+    "client": "Mettle",
+    "category": "Motion Graphics",
+    "type": "mp4",
+    "src": "assets/uploads/1781732591226-mcp-motion-phone.mp4",
+    "thumb": "assets/uploads/1781732596187-frame-9.png",
+    "duration": "0:15",
+    "description": "An animated Motion graphics that breaks down Mettle mobile features using clean iconography and smooth scene transitions."
+  },
+  {
+    "id": "pulse-app-promo",
+    "title": "Pizza Ads Promo",
+    "client": "Pizza",
+    "category": "Social",
+    "type": "mp4",
+    "src": "assets/uploads/1781734378272-pizza-paper-style-explainer-portfolio-3mb.mp4",
+    "thumb": "assets/uploads/1781734384843-frame-51.png",
+    "duration": "0:15",
+    "description": "friendly social promo built for Pizza brands — bold colors, beat-synced cuts, and snappy captions."
+  },
+  {
+    "id": "skyline-brand-intro",
+    "title": "Slake Cold Iced",
+    "client": "Slake Cold Iced Tea Inc.",
+    "category": "Motion Graphics",
+    "type": "mp4",
+    "src": "assets/uploads/1781734547663-iced-tea-portfolio-3mb.mp4",
+    "thumb": "assets/uploads/1781734553669-frame-102.png",
+    "duration": "0:15",
+    "description": "A premium ads video for Slake cold iced in different flavours, with light streaks and depth, designed as a reusable opener for Slake's video content."
+  },
+  {
+    "id": "ecodrive-commercial",
+    "title": "EcoDrive Commercial",
+    "client": "EcoDrive",
+    "category": "Ads",
+    "type": "mp4",
+    "src": "assets/motion/videos/ecodrive.mp4",
+    "thumb": "assets/motion/thumbs/ecodrive.jpg",
+    "duration": "0:45",
+    "description": "A broadcast-style commercial mixing live-action plates with motion-graphic overlays to highlight EcoDrive's EV range."
+  },
+  {
+    "id": "lumen-ui-animation",
+    "title": "Lumen UI Animation",
+    "client": "Lumen",
+    "category": "Motion Graphics",
+    "type": "mp4",
+    "src": "assets/motion/videos/lumen.mp4",
+    "thumb": "assets/motion/thumbs/lumen.jpg",
+    "duration": "0:22",
+    "description": "A UI animation reel showcasing micro-interactions and screen-flow transitions for Lumen's design system."
+  }
+]

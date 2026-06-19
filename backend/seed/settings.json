@@ -1,0 +1,13 @@
+{
+  "name": "PeroTech",
+  "handle": "@PeroTechie",
+  "tagline": "Startup CEO, YouTuber, and founder. Building a portfolio of bootstrapped SaaS products.",
+  "socials": {
+    "youtube": "https://www.youtube.com/@PeroTech",
+    "linkedin": "https://www.linkedin.com/company/perotech",
+    "instagram": "https://www.instagram.com/@tech.piro/",
+    "twitter": "https://twitter.com/perotechie"
+  },
+  "photo": "assets/img/images/profile-large.webp",
+  "homeHeading": "I'm PeroTech 👋"
+}

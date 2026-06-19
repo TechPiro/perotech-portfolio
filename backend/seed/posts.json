@@ -1,0 +1,355 @@
+[
+  {
+    "title": "Claude Fable 5 + Higgsfield MCP = $38,400/Month",
+    "category": "Tutorial",
+    "badge": "hot",
+    "excerpt": "How to monetize AI content - even with zero background in motion design, video editing, or sales?",
+    "cover": "assets/uploads/1781707982811-how-to-make.png",
+    "readTime": "4 min read",
+    "author": "PeroTech",
+    "date": "2026-06-17",
+    "blocks": [
+      {
+        "type": "subheading",
+        "text": "How to monetize AI content - even with zero background in motion design, video editing, or sales? You use the powerful combination of Claude Fable and Higgsfield MCP. This creates a highly automated workflow that handles 15-second motion ads, filters high-potential business contacts, and drafts your outreach templates."
+      },
+      {
+        "type": "paragraph",
+        "text": "You have probably already noticed it. As AI gets stronger, a lot of new ways to make money keep opening up. Someone who was paid $500 for a piece of work yesterday can now earn ten times more - and far faster -  today.\n\nFor creators and people who sell digital services, this is huge. It opens up scalable ways to turn an AI skill into real income. And one of the most in-demand skills right now is commercial motion design.\n\nFor a long time, good motion graphics were locked behind a big wall -  you needed expensive software, years of practice, and a lot of time. Brands pay thousands of dollars for a single 15-second promo video, because animating it frame by frame takes a designer days of work.\n\nThat wall just came down.\n\nWhen you connect Claude Fable to the Higgsfield MCP, these two powerful models start working as one team. Claude is the brain that plans everything. Higgsfield is what actually makes the video. \n\nIn this article, we'll show you the full workflow - from zero to your first $1,000 even if you have never touched design, editing, or sales. You'll see how the Claude Fable + Higgsfield MCP combo creates the ads, finds the clients, and sends the outreach for you, almost on autopilot.\n\nLet's get into it.\n\nWhy would a business pay you if you're just starting out?\nThe experienced \"sharks\" in this market already have their own client base, or they work inside agencies, or they charge so much that most small brands simply can't afford them. That leaves a giant gap.\n\nThe market needs new people - people who can help a business make better ads and sell more. And right now, in the AI era, every business knows it needs to bring AI into its marketing. The demand is everywhere. The supply is still tiny. \n\nWith Claude Fable + Higgsfield MCP, the AI handles the heavy rendering. Now let's actually build something.\n\nBefore looking for clients, we need a portfolio. \nThe first thing any brand asks is: \"Can I see examples of your work?\" \nWe need a solid showcase so they understand exactly what they're paying for. We are going to target 3 of the most common niches right now and build a premium motion video for each: Tech, Beverage, and Education."
+      },
+      {
+        "type": "list",
+        "items": [
+          "Step 1: Connecting the Studio"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Instead of jumping between isolated generative tools, downloading files, and trying to patch them together manually, the Higgsfield MCP lets Claude talk directly to the video creation engine. \n\nOpen Claude, go to Settings → Connectors.\n\nClick \"Add custom connector\".\n\nName it Higgsfield and paste this dedicated server URL: https://mcp.higgsfield.ai/mcp\n\nClick connect, and your accounts now work together automatically.\n\nTo make this even easier, we use a built-in assistant called the Motion Design Skill. This file takes you by the hand and guides you through the entire creative process even if you are starting from absolute zero. \nDownload the motion design skill prompt below\n\nJust drop this skill file into your Claude chat to activate it, and your automated production line is live."
+      },
+      {
+        "type": "file",
+        "name": "SKILL_MOTION.md",
+        "src": "assets/uploads/1781710250729-skill-motion.md",
+        "size": "8.5 KB"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Step 2: Generating Content & Building Your Portfolio"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "With your setup ready, we can start generating our first motion design asset. Simply type this command into your Claude workspace:"
+      },
+      {
+        "type": "code",
+        "language": "Prompt",
+        "code": "\"Make a motion design video.\""
+      },
+      {
+        "type": "paragraph",
+        "text": "Without this skill, standard AI tools just give you random, disconnected shots. But with Higgsfield MCP, the shots stay stylistically locked to each other automatically.\n\nOnce you look at the storyboard layout and see everything lines up, just type: \"Approve and generate.\"\n\nTo build the final video, Higgsfield automatically runs Seedance 2.0, the absolute best video generation model on the market right now. \n\nTo build out the rest of our portfolio without wasting hours doing it manually, we can use the multiplication power of the MCP content machine to render our next two niche videos at the exact same time. Drop this master prompt into the chat:"
+      },
+      {
+        "type": "code",
+        "language": "Prompt",
+        "code": "\"Create motion designs for Beverage and Education niches. Use Hyper-Motion style for a 'Slake' iced-tea ad, and a 2D paper style for an educational explainer on the history of pizza. Make all creative decisions yourself.\""
+      },
+      {
+        "type": "heading",
+        "text": "The Results:"
+      },
+      {
+        "type": "video",
+        "kind": "mp4",
+        "src": "assets/uploads/1781710351133-pizza-paper-style-explainer-portfolio-3mb.mp4",
+        "caption": ""
+      },
+      {
+        "type": "video",
+        "kind": "mp4",
+        "src": "assets/uploads/1781710397442-iced-tea-portfolio-3mb.mp4",
+        "caption": ""
+      },
+      {
+        "type": "video",
+        "kind": "mp4",
+        "src": "assets/uploads/1781710410942-mcp-motion-phone.mp4",
+        "caption": ""
+      },
+      {
+        "type": "paragraph",
+        "text": "What used to take weeks of manual editing now gives you a premium three-video portfolio in 5 minutes with zero design experience."
+      },
+      {
+        "type": "list",
+        "items": [
+          "Step 3: Finding Clients and Closing Deals"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "First, upload our custom Client Finder Skill right into your Claude workspace.\n\n"
+      },
+      {
+        "type": "file",
+        "name": "client-finder.md",
+        "src": "assets/uploads/1781711594857-client-finder.md",
+        "size": "6.1 KB"
+      },
+      {
+        "type": "paragraph",
+        "text": "Now, let's pull high-potential clients from our 3 core sources using targeted prompts:\n\n"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Source 1: Google Maps (Restaurants, Gyms, Boutiques)"
+        ]
+      },
+      {
+        "type": "code",
+        "language": "Prompt",
+        "code": "Analyze Google Maps for Small & Medium Businesses, and send me 100 of their emails"
+      },
+      {
+        "type": "paragraph",
+        "text": "The skill automatically scrapes public profiles and delivers a clean list of active decision-makers, saving you a whole day of manual digging.\n\n"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Source 2: Kickstarter Campaigns"
+        ]
+      },
+      {
+        "type": "code",
+        "language": "Prompt",
+        "code": "Scan Kickstarter for active product campaigns that have raised between 10% and 50% of their funding goal. Extract 50 campaign contact emails that need high-converting explainer videos to finish their launch.\""
+      },
+      {
+        "type": "list",
+        "items": [
+          "Source 3: Amazon and Shopify Stores"
+        ]
+      },
+      {
+        "type": "code",
+        "language": "Prompt",
+        "code": "Locate established Amazon and Shopify sellers with strong product reviews who are currently relying only on basic static photos. Pull their company contact info for 50 potential clients."
+      },
+      {
+        "type": "paragraph",
+        "text": "Now you have 200 targeted emails found by AI in minutes. \nTo reach out to them completely hands-free, go to \nSettings →Connectors and link your Gmail account the exact same way you connected Higgsfield.\n\nDrop your generated list into the chat and use this prompt:"
+      },
+      {
+        "type": "code",
+        "language": "Prompt",
+        "code": "Copy all 200 emails into a clean block and send out this personalized partnership proposal automatically using the Gmail connector."
+      },
+      {
+        "type": "subheading",
+        "text": "The Winning Outreach Formula:"
+      },
+      {
+        "type": "paragraph",
+        "text": "Subject: Partnership Proposal / [Brand Name]\n\nHello! I came across your product and it really caught my attention. My name is [X]  and I'm writing to you with a collaboration proposal.\n\nI noticed a huge opportunity to increase your product’s sales through motion design (63% of people worldwide prefer watching a short video about a product before buying it). I specialize in motion design and I’d love to create a high-converting video for you.\n\nHere's my portfolio: [Link to your 3 AI-generated videos]\n\nIf you're interested, I'd be happy to discuss the details.\n\nBest regards,\n\n[Your Name]"
+      },
+      {
+        "type": "paragraph",
+        "text": "The Gmail connector picks it up, personalizes each message for the specific business, and executes the entire blast in under 2 minutes. You are offering a solution that businesses actually need. In the worst case - they don't reply. In the best case - you get a high-paying client for a few hours of automated work.\n\nTake the Challenge This Week\n\nYour challenge this week is simple: go out there and find just one client. Set up your workspace, launch your portfolio, send out your first pitches, and see what happens.\n\nHead over to higgsfield.ai right now to set up your account, link your Claude workspace, and start launching your own automated production pipeline. \n\n"
+      }
+    ],
+    "id": "claude-fable-5-higgsfield-mcp-38-400-month",
+    "slug": "claude-fable-5-higgsfield-mcp-38-400-month"
+  },
+  {
+    "id": "automate-client-videos-with-ai",
+    "slug": "automate-client-videos-with-ai",
+    "title": "How I Automate Client Videos with AI (Full Workflow)",
+    "excerpt": "The exact pipeline I use to turn a client brief into a finished motion-graphics ad — scripting, rendering, editing, and delivery, mostly on autopilot.",
+    "cover": "assets/motion/thumbs/techflow.jpg",
+    "category": "Tutorial",
+    "date": "2026-06-12",
+    "author": "PeroTech",
+    "readTime": "6 min read",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Most of my client videos now start as a one-paragraph brief and end as a delivered ad — with AI doing the heavy lifting in between. Here's the full workflow, step by step, including the tools, prompts, and code I use."
+      },
+      {
+        "type": "heading",
+        "text": "The pipeline at a glance"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Capture the brief in plain language",
+          "Generate a script + storyboard with an LLM",
+          "Render shots and motion elements",
+          "Auto-assemble a rough cut",
+          "Polish and deliver"
+        ]
+      },
+      {
+        "type": "image",
+        "src": "assets/motion/thumbs/skyline.jpg",
+        "caption": "A brand intro produced almost entirely from a text brief."
+      },
+      {
+        "type": "heading",
+        "text": "Step 1 — Turn the brief into a script"
+      },
+      {
+        "type": "paragraph",
+        "text": "I keep a reusable prompt that takes the client's brief and returns a scene-by-scene storyboard with on-screen text and pacing notes."
+      },
+      {
+        "type": "code",
+        "language": "text",
+        "code": "You are a senior motion designer.\nTurn this brief into a 30s ad storyboard with\nscene-by-scene direction, on-screen text, and pacing.\n\nBRIEF: <paste client brief here>"
+      },
+      {
+        "type": "subheading",
+        "text": "Kick off the render job"
+      },
+      {
+        "type": "code",
+        "language": "bash",
+        "code": "# start the automation worker\nn8n start\n\n# trigger a render from the approved storyboard\ncurl -X POST http://localhost:5678/webhook/render \\\n  -H \"Content-Type: application/json\" \\\n  -d '{ \"project\": \"techflow\", \"format\": \"mp4\" }'"
+      },
+      {
+        "type": "paragraph",
+        "text": "On the frontend I just hit my own endpoint and poll for the finished URL:"
+      },
+      {
+        "type": "code",
+        "language": "js",
+        "code": "const res = await fetch('/api/render', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ project: 'techflow' }),\n});\nconst data = await res.json();\nconsole.log('Render ready:', data.url);"
+      },
+      {
+        "type": "heading",
+        "text": "The result"
+      },
+      {
+        "type": "paragraph",
+        "text": "Here's one of the finished ads produced with this exact pipeline:"
+      },
+      {
+        "type": "video",
+        "kind": "mp4",
+        "src": "assets/motion/videos/techflow.mp4",
+        "caption": "TechFlow product launch — generated from a one-paragraph brief."
+      },
+      {
+        "type": "quote",
+        "text": "Stop trying to think and type at the same time. Talk the idea out, then let AI structure it."
+      },
+      {
+        "type": "heading",
+        "text": "Grab the blueprint"
+      },
+      {
+        "type": "paragraph",
+        "text": "I packaged the prompts and the step-by-step checklist into a single file you can download and adapt:"
+      },
+      {
+        "type": "file",
+        "name": "perotech-automation-blueprint.txt",
+        "src": "assets/files/perotech-automation-blueprint.txt",
+        "size": "1 KB"
+      },
+      {
+        "type": "paragraph",
+        "text": "That's the whole loop. Replace the sample assets with your own and you've got a repeatable system for client work."
+      }
+    ]
+  },
+  {
+    "id": "5-motion-graphics-trends-2026",
+    "slug": "5-motion-graphics-trends-2026",
+    "title": "5 Motion Graphics Trends Brands Are Paying For in 2026",
+    "excerpt": "From AI-assisted 3D to kinetic typography that actually converts — the styles clients keep asking me for this year.",
+    "cover": "assets/motion/thumbs/pulse.jpg",
+    "category": "Insights",
+    "badge": "trending",
+    "date": "2026-05-28",
+    "author": "PeroTech",
+    "readTime": "4 min read",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Every year the look of paid video shifts. Here are the five styles brands are spending real budget on in 2026."
+      },
+      {
+        "type": "list",
+        "items": [
+          "AI-assisted 3D product reveals",
+          "Bold kinetic typography",
+          "Hand-drawn / mixed-media overlays",
+          "Ultra-short vertical ads",
+          "Data-driven motion (animated charts & UI)"
+        ]
+      },
+      {
+        "type": "video",
+        "kind": "mp4",
+        "src": "assets/motion/videos/pulse.mp4",
+        "caption": "Vertical social promo — one of the fastest-growing formats."
+      },
+      {
+        "type": "paragraph",
+        "text": "Want any of these for your brand? Head to the contact page and let's talk."
+      }
+    ]
+  },
+  {
+    "id": "from-brief-to-delivery",
+    "slug": "from-brief-to-delivery",
+    "title": "From Brief to Delivery: How I Work With Clients",
+    "excerpt": "A transparent look at my process, timelines, and what you can expect when we work together on a project.",
+    "cover": "assets/motion/thumbs/lumen.jpg",
+    "category": "Behind the scenes",
+    "date": "2026-05-10",
+    "author": "PeroTech",
+    "readTime": "3 min read",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Clear process makes for happy clients. Here's exactly how a project runs from first message to final files."
+      },
+      {
+        "type": "subheading",
+        "text": "1. Discovery"
+      },
+      {
+        "type": "paragraph",
+        "text": "We start with a short call to nail down goals, audience, and references."
+      },
+      {
+        "type": "subheading",
+        "text": "2. Storyboard & approval"
+      },
+      {
+        "type": "paragraph",
+        "text": "You approve a storyboard before any heavy production begins — no surprises."
+      },
+      {
+        "type": "subheading",
+        "text": "3. Production & delivery"
+      },
+      {
+        "type": "paragraph",
+        "text": "I produce, you review one round of revisions, and I deliver the final files in every format you need."
+      },
+      {
+        "type": "image",
+        "src": "assets/motion/thumbs/ecodrive.jpg",
+        "caption": "A commercial delivered in broadcast and social formats."
+      }
+    ]
+  }
+]

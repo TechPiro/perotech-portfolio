@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>PeroTech — Admin</title>
+  <link rel="icon" href="../assets/img/favicon-large.png" type="image/png" />
+  <!-- World map for visitor analytics (loads from CDN; dashboard degrades gracefully if offline) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/css/jsvectormap.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/js/jsvectormap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/maps/world.js"></script>
+  <link rel="stylesheet" href="admin.css" />
+</head>
+
+<body>
+  <!-- LOGIN -->
+  <div id="login" class="login-wrap">
+    <form class="login-card" id="login-form">
+      <div class="login-brand">Pero<span>Tech</span> Admin</div>
+      <div class="login-sub">Sign in to manage your portfolio.</div>
+      <div class="field">
+        <label>Username</label>
+        <input class="input" id="login-user" autocomplete="username" required />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input class="input" id="login-pass" type="password" autocomplete="current-password" required />
+      </div>
+      <button class="btn block" type="submit">Sign in</button>
+      <div class="login-err" id="login-err"></div>
+    </form>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="app hidden">
+    <aside class="sidebar">
+      <div class="brand">Pero<span>Tech</span></div>
+      <a class="nav-link active" data-view="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg> Dashboard</a>
+      <a class="nav-link" data-view="posts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h6"/></svg> Blog Posts</a>
+      <a class="nav-link" data-view="motion"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 9l5 3-5 3z"/></svg> Motion</a>
+      <a class="nav-link" data-view="products"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 13h6"/></svg> Products</a>
+      <a class="nav-link" data-view="timeline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Timeline</a>
+      <a class="nav-link" data-view="tools"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.1-2.1 2.5-2.5z"/></svg> Tools</a>
+      <a class="nav-link" data-view="videos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M10 8l5 3-5 3z"/><path d="M7 21h10"/></svg> YouTube</a>
+      <a class="nav-link" data-view="subscribers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg> Subscribers</a>
+      <a class="nav-link" data-view="broadcast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg> Bulk Email</a>
+      <a class="nav-link" data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Settings</a>
+      <div class="spacer"></div>
+      <a class="nav-link logout" id="logout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg> Logout</a>
+    </aside>
+
+    <div class="main">
+      <div class="topbar">
+        <h1 id="view-title">Dashboard</h1>
+        <div class="who">Signed in as <b id="who-user">admin</b> · <a href="/" target="_blank" style="color:var(--accent)">View site ↗</a></div>
+      </div>
+      <div class="content" id="view"></div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <div class="modal-head"><h2 id="modal-title">Edit</h2><button class="modal-close" id="modal-close">&times;</button></div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <div class="adm-toast-wrap" id="toasts"></div>
+
+  <script src="admin.js"></script>
+</body>
+
+</html>

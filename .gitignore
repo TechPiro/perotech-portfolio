@@ -1,0 +1,27 @@
+/node_modules
+/.next
+/out
+/build
+.DS_Store
+*.pem
+npm-debug.log*
+.env
+.env*.local
+backend/.env
+!backend/.env.example
+backend/node_modules
+
+# ---- Runtime (mutable) data — never commit. ----
+# Populated from backend/seed/ on first run and then owned by the live server
+# (subscribers, analytics, admin-edited content). Keeping it out of git means a
+# `git pull` deploy can never overwrite live data.
+backend/data/
+backend/subscribers.json
+
+# ---- User uploads — persistent; live outside git in production. ----
+frontend/assets/uploads/*
+!frontend/assets/uploads/.gitkeep
+
+# ---- Logs ----
+logs/
+*.log

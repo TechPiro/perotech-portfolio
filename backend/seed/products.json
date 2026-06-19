@@ -1,0 +1,37 @@
+[
+  {
+    "id": "feedhive",
+    "title": "FeedHive",
+    "subtitle": "Social Media Management Tool",
+    "url": "https://www.feedhive.com/",
+    "image": "assets/img/projects/project-2.webp"
+  },
+  {
+    "id": "aidbase",
+    "title": "Aidbase",
+    "subtitle": "AI-Powered Support Tool",
+    "url": "https://www.aidbase.ai/",
+    "image": "assets/img/projects/project-1.webp"
+  },
+  {
+    "id": "linkdrip",
+    "title": "LinkDrip",
+    "subtitle": "Link shortening & engagement tool",
+    "url": "https://www.linkdrip.com/",
+    "image": "assets/img/projects/project-3.webp"
+  },
+  {
+    "id": "tinykiwi",
+    "title": "TinyKiwi",
+    "subtitle": "Online image editing & design tool",
+    "url": "https://www.tinykiwi.io/",
+    "image": "assets/img/projects/project-4.webp"
+  },
+  {
+    "id": "signupgate",
+    "title": "SignupGate",
+    "subtitle": "Waitlist & early access management tool",
+    "url": "https://www.signupgate.com/",
+    "image": "assets/img/projects/project-5.webp"
+  }
+]

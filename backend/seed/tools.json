@@ -1,0 +1,32 @@
+[
+  {
+    "id": "n8n",
+    "name": "n8n",
+    "icon": "assets/img/icons/n8n.webp"
+  },
+  {
+    "id": "nocodb",
+    "name": "NocoDB",
+    "icon": "assets/img/icons/nocodb.webp"
+  },
+  {
+    "id": "lindy",
+    "name": "Lindy AI",
+    "icon": "assets/img/icons/lindy.webp"
+  },
+  {
+    "id": "strapi",
+    "name": "Strapi",
+    "icon": "assets/img/icons/strapi.webp"
+  },
+  {
+    "id": "notion",
+    "name": "Notion",
+    "icon": "assets/img/icons/notion.svg"
+  },
+  {
+    "id": "blender",
+    "name": "Blender",
+    "icon": "assets/img/icons/blender.svg"
+  }
+]
