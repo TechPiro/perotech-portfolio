@@ -96,8 +96,11 @@
           <div class="article-meta"><span>By ${esc(post.author || "PeroTech")}</span><span class="dot"></span><span>${fmtDate(post.date)}</span>${post.readTime ? `<span class="dot"></span><span>${esc(post.readTime)}</span>` : ""}</div>
           ${post.cover ? `<img class="article-cover" src="${post.cover}" alt="${esc(post.title)}" />` : ""}
           <div class="article-body">${bodyHtml}</div>
+          <div class="article-engage" id="article-engage"></div>
         </article>
       </div>${moreHtml}`;
+
+    initEngage(post.slug || post.id);
 
     const copyBtn = document.getElementById("share-copy");
     if (copyBtn) copyBtn.addEventListener("click", () => {
@@ -113,6 +116,90 @@
         const code = btn.closest(".bcode").querySelector("code").innerText;
         navigator.clipboard.writeText(code).then(() => { btn.textContent = "Copied!"; btn.classList.add("copied"); setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 1800); });
       });
+    });
+  }
+
+  // ---------- Likes + comments ----------
+  function visitorId() {
+    let v = localStorage.getItem("pt_visitor");
+    if (!v) { v = "v" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); localStorage.setItem("pt_visitor", v); }
+    return v;
+  }
+  const heart = (filled) => `<svg viewBox="0 0 24 24" width="20" height="20" fill="${filled ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>`;
+
+  function commentRow(c) {
+    const initials = (c.name || "?").trim().slice(0, 1).toUpperCase();
+    const when = new Date(c.ts || c.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+    return `<div class="cmt">
+      <div class="cmt-av">${esc(initials)}</div>
+      <div class="cmt-body">
+        <div class="cmt-head"><b>${esc(c.name)}</b><span>${when}</span></div>
+        <div class="cmt-text">${esc(c.text)}</div>
+      </div>
+    </div>`;
+  }
+
+  function initEngage(postId) {
+    const root = document.getElementById("article-engage");
+    if (!root) return;
+    const vid = visitorId();
+    root.innerHTML = `
+      <div class="engage-bar">
+        <button class="like-btn" id="like-btn" type="button" aria-pressed="false">${heart(false)}<span id="like-count">0</span><span class="like-word">Like</span></button>
+        <a class="engage-comments-link" href="#comments">💬 <span id="cmt-count">0</span> Comments</a>
+      </div>
+      <section class="comments" id="comments">
+        <h3 class="comments-title">Comments</h3>
+        <form class="comment-form" id="comment-form">
+          <div class="cf-row">
+            <input class="cf-name" id="cf-name" placeholder="Your name" maxlength="60" autocomplete="name" required />
+          </div>
+          <textarea class="cf-text" id="cf-text" placeholder="Share your thoughts…" maxlength="2000" required></textarea>
+          <div class="cf-actions"><button class="cf-submit" type="submit">Post comment</button></div>
+        </form>
+        <div class="comment-list" id="comment-list"><div class="cmt-empty">Loading…</div></div>
+      </section>`;
+
+    const likeBtn = document.getElementById("like-btn");
+    const likeCount = document.getElementById("like-count");
+    const likeWord = likeBtn.querySelector(".like-word");
+    const setLike = (count, liked) => {
+      likeCount.textContent = count;
+      likeBtn.classList.toggle("liked", !!liked);
+      likeBtn.setAttribute("aria-pressed", liked ? "true" : "false");
+      likeBtn.querySelector("svg").setAttribute("fill", liked ? "currentColor" : "none");
+      likeWord.textContent = liked ? "Liked" : "Like";
+    };
+    fetch(`/api/posts/${encodeURIComponent(postId)}/reactions?visitor=${encodeURIComponent(vid)}`)
+      .then((r) => r.json()).then((d) => setLike(d.count || 0, d.liked)).catch(() => {});
+    likeBtn.addEventListener("click", () => {
+      likeBtn.disabled = true;
+      fetch(`/api/posts/${encodeURIComponent(postId)}/like`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ visitorId: vid }),
+      }).then((r) => r.json()).then((d) => setLike(d.count || 0, d.liked)).catch(() => {}).finally(() => (likeBtn.disabled = false));
+    });
+
+    const list = document.getElementById("comment-list");
+    const cmtCount = document.getElementById("cmt-count");
+    const loadComments = () =>
+      fetch(`/api/posts/${encodeURIComponent(postId)}/comments`).then((r) => r.json()).then((cs) => {
+        cmtCount.textContent = cs.length;
+        list.innerHTML = cs.length ? cs.map(commentRow).join("") : '<div class="cmt-empty">Be the first to comment.</div>';
+      }).catch(() => { list.innerHTML = '<div class="cmt-empty">Could not load comments.</div>'; });
+    loadComments();
+
+    document.getElementById("comment-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const name = document.getElementById("cf-name").value.trim();
+      const text = document.getElementById("cf-text").value.trim();
+      if (!name || !text) return;
+      const btn = e.target.querySelector(".cf-submit");
+      btn.disabled = true; btn.textContent = "Posting…";
+      fetch(`/api/posts/${encodeURIComponent(postId)}/comments`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, text }),
+      }).then((r) => r.json()).then((d) => {
+        if (d && d.id) { document.getElementById("cf-text").value = ""; loadComments(); }
+      }).catch(() => {}).finally(() => { btn.disabled = false; btn.textContent = "Post comment"; });
     });
   }
 

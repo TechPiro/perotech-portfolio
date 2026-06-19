@@ -63,7 +63,7 @@ router.post('/upload', upload.single('file'), (req, res) => {
 });
 
 // ---------- Generic collection CRUD (posts / motion / products) ----------
-const COLLECTIONS = { posts: 'posts.json', motion: 'motion.json', products: 'products.json', timeline: 'timeline.json', tools: 'tools.json', videos: 'videos.json' };
+const COLLECTIONS = { posts: 'posts.json', motion: 'motion.json', products: 'products.json', services: 'services.json', timeline: 'timeline.json', tools: 'tools.json', videos: 'videos.json' };
 
 Object.entries(COLLECTIONS).forEach(([name, file]) => {
   router.get(`/${name}`, (req, res) => res.json(readJSON(file, [])));
@@ -116,6 +116,37 @@ router.delete('/subscribers/:id', (req, res) => {
   const next = subs.filter((s) => String(s.id) !== String(req.params.id));
   writeSubs(next);
   res.json({ ok: true, removed: subs.length - next.length });
+});
+
+// ---------- Comments moderation ----------
+router.get('/comments', (req, res) => {
+  const all = readJSON('comments.json', []);
+  const posts = readJSON('posts.json', []);
+  const title = {};
+  posts.forEach((p) => (title[p.slug || p.id] = p.title));
+  res.json(all.slice().sort((a, b) => b.ts - a.ts).map((c) => ({ ...c, postTitle: title[c.postId] || c.postId })));
+});
+router.delete('/comments/:id', (req, res) => {
+  const all = readJSON('comments.json', []);
+  const next = all.filter((c) => c.id !== req.params.id);
+  writeJSON('comments.json', next);
+  res.json({ ok: true, removed: all.length - next.length });
+});
+
+// ---------- Chat leads ----------
+router.get('/leads', (req, res) => {
+  const leads = readJSON('leads.json', []).slice().sort((a, b) => (b.lastSeen || b.ts) - (a.lastSeen || a.ts));
+  res.json(leads.map((l) => ({
+    ...l,
+    countryName: l.country ? countryName(l.country) : '',
+    flag: l.country ? flagEmoji(l.country) : '',
+  })));
+});
+router.delete('/leads/:id', (req, res) => {
+  const all = readJSON('leads.json', []);
+  const next = all.filter((l) => l.id !== req.params.id);
+  writeJSON('leads.json', next);
+  res.json({ ok: true, removed: all.length - next.length });
 });
 
 // ---------- Analytics / dashboard stats ----------

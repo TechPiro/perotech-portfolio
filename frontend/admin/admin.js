@@ -65,7 +65,7 @@ function showApp() {
 $$(".nav-link[data-view]").forEach((a) =>
   a.addEventListener("click", () => go(a.dataset.view))
 );
-const TITLES = { dashboard: "Dashboard", posts: "Blog Posts", motion: "Motion Projects", products: "Products", timeline: "Timeline", tools: "Favorite Tools", videos: "YouTube Videos", subscribers: "Subscribers", broadcast: "Bulk Email", settings: "Settings" };
+const TITLES = { dashboard: "Dashboard", posts: "Blog Posts", motion: "Motion Projects", products: "Products", services: "Services", timeline: "Timeline", tools: "Favorite Tools", videos: "YouTube Videos", subscribers: "Subscribers", comments: "Comments", leads: "Chat Leads", broadcast: "Bulk Email", settings: "Settings" };
 function go(view) {
   $$(".nav-link[data-view]").forEach((a) => a.classList.toggle("active", a.dataset.view === view));
   $("#view-title").textContent = TITLES[view] || view;
@@ -434,6 +434,93 @@ function productEditor(p) {
     try { if (isEdit) await api("PUT", "/products/" + encodeURIComponent(p.id), payload); else await api("POST", "/products", payload); toast("Saved"); closeModal(); go("products"); } catch (e) { toast(e.message, "err"); }
   });
 }
+
+/* ---- Services ---- */
+VIEWS.services = async () => {
+  const items = await api("GET", "/services");
+  $("#view").innerHTML = `
+    <div class="panel">
+      <div class="panel-head"><h3>${items.length} service(s) — shown by the chatbot &amp; suggestions</h3><button class="btn sm" id="new">+ New Service</button></div>
+      ${items.length ? `<table class="table"><thead><tr><th></th><th>Title</th><th>Subtitle</th><th>Link</th><th></th></tr></thead><tbody>
+        ${items.map((s) => `<tr>
+          <td><img class="thumb-sm" src="/${esc(s.image || "")}" onerror="this.style.visibility='hidden'"/></td>
+          <td><b>${esc(s.title)}</b></td><td class="muted">${esc(s.subtitle || "")}</td>
+          <td class="muted" style="font-size:.8rem">${esc(s.url || "")}</td>
+          <td><div class="actions"><button class="btn ghost sm" data-edit="${esc(s.id)}">Edit</button><button class="btn danger sm" data-del="${esc(s.id)}">Delete</button></div></td>
+        </tr>`).join("")}</tbody></table>` : '<div class="empty">No services yet.</div>'}
+    </div>`;
+  $("#new").addEventListener("click", () => serviceEditor());
+  $$("[data-edit]").forEach((b) => b.addEventListener("click", () => serviceEditor(items.find((s) => s.id === b.dataset.edit))));
+  $$("[data-del]").forEach((b) => b.addEventListener("click", async () => { if (!confirm("Delete service?")) return; await api("DELETE", "/services/" + encodeURIComponent(b.dataset.del)); toast("Deleted"); go("services"); }));
+};
+function serviceEditor(s) {
+  s = s || {}; const isEdit = !!s.id;
+  openModal(isEdit ? "Edit Service" : "New Service", `
+    ${field("Title", "sv-title", s.title || "")}
+    ${field("Subtitle / short description", "sv-sub", s.subtitle || "", true)}
+    ${uploadField("Thumbnail image", "sv-img", s.image || "")}
+    <div class="grid-2">${field("Link (page or URL)", "sv-url", s.url || "chat.html")}${field("Button text", "sv-cta", s.cta || "Learn more")}</div>
+    <div class="form-actions"><button class="btn ghost" id="cancel">Cancel</button><button class="btn" id="save">${isEdit ? "Save" : "Create"}</button></div>`);
+  $("#cancel").addEventListener("click", closeModal);
+  $("#save").addEventListener("click", async () => {
+    const payload = { title: $("#sv-title").value.trim(), subtitle: $("#sv-sub").value.trim(), image: $("#sv-img").value.trim(), url: $("#sv-url").value.trim(), cta: $("#sv-cta").value.trim() };
+    if (!payload.title) return toast("Title required", "err");
+    try { if (isEdit) await api("PUT", "/services/" + encodeURIComponent(s.id), payload); else await api("POST", "/services", payload); toast("Saved"); closeModal(); go("services"); } catch (e) { toast(e.message, "err"); }
+  });
+}
+
+/* ---- Comments moderation ---- */
+VIEWS.comments = async () => {
+  const items = await api("GET", "/comments");
+  $("#view").innerHTML = `
+    <div class="panel">
+      <div class="panel-head"><h3>${items.length} comment(s)</h3></div>
+      ${items.length ? `<table class="table"><thead><tr><th>Author</th><th>Comment</th><th>On post</th><th>When</th><th></th></tr></thead><tbody>
+        ${items.map((c) => `<tr>
+          <td><b>${esc(c.name)}</b></td>
+          <td>${esc(c.text)}</td>
+          <td class="muted">${esc(c.postTitle || c.postId)}</td>
+          <td class="muted">${fmtDate(c.date)}</td>
+          <td><div class="actions">
+            <a class="btn ghost sm" href="/article.html?slug=${encodeURIComponent(c.postId)}#comments" target="_blank">View</a>
+            <button class="btn danger sm" data-del="${esc(c.id)}">Delete</button>
+          </div></td>
+        </tr>`).join("")}</tbody></table>` : '<div class="empty">No comments yet.</div>'}
+    </div>`;
+  $$("[data-del]").forEach((b) => b.addEventListener("click", async () => { if (!confirm("Delete this comment?")) return; await api("DELETE", "/comments/" + encodeURIComponent(b.dataset.del)); toast("Comment deleted"); go("comments"); }));
+};
+
+/* ---- Chat Leads ---- */
+VIEWS.leads = async () => {
+  const leads = await api("GET", "/leads");
+  const loc = (l) => {
+    const parts = [l.city, l.region].filter(Boolean).join(", ");
+    const country = l.countryName || l.country || "";
+    return [l.flag, [parts, country].filter(Boolean).join(" · ")].filter(Boolean).join(" ") || '<span class="muted">Unknown</span>';
+  };
+  $("#view").innerHTML = `
+    <div class="panel">
+      <div class="panel-head"><h3>${leads.length} chat lead(s) — captured from the “Let’s chat” bot</h3>
+        <button class="btn ghost sm" id="email-all" ${leads.length ? "" : "disabled"}>Email all</button></div>
+      <div class="help">People who introduced themselves in the chatbot, with the region they messaged from.</div>
+      ${leads.length ? `<table class="table"><thead><tr><th>Name</th><th>Email</th><th>Location</th><th>Chats</th><th>First message</th><th>When</th><th></th></tr></thead><tbody>
+        ${leads.map((l) => `<tr>
+          <td><b>${esc(l.name)}</b></td>
+          <td><a href="mailto:${esc(l.email)}" style="color:var(--accent)">${esc(l.email)}</a></td>
+          <td>${loc(l)}</td>
+          <td class="muted">${l.chats || 1}</td>
+          <td class="muted" style="max-width:240px;font-size:.82rem">${esc(l.firstMessage || "—")}</td>
+          <td class="muted">${fmtDate(l.date)}</td>
+          <td><div class="actions"><button class="btn danger sm" data-del="${esc(l.id)}">Delete</button></div></td>
+        </tr>`).join("")}</tbody></table>` : '<div class="empty">No chat leads yet. They appear when visitors share their name & email in the chat.</div>'}
+    </div>`;
+  const ea = $("#email-all");
+  if (ea) ea.addEventListener("click", () => {
+    const emails = leads.map((l) => l.email).filter(Boolean).join(",");
+    if (emails) window.location.href = "mailto:?bcc=" + encodeURIComponent(emails);
+  });
+  $$("[data-del]").forEach((b) => b.addEventListener("click", async () => { if (!confirm("Delete this lead?")) return; await api("DELETE", "/leads/" + encodeURIComponent(b.dataset.del)); toast("Lead deleted"); go("leads"); }));
+};
 
 /* ---- Subscribers ---- */
 VIEWS.subscribers = async () => {

@@ -1,0 +1,34 @@
+[
+  {
+    "id": "motion-ads",
+    "title": "Motion Graphics & Ads",
+    "subtitle": "High-converting animated ads and brand videos, produced fast with an AI-assisted pipeline.",
+    "image": "assets/motion/thumbs/techflow.jpg",
+    "url": "motion.html",
+    "cta": "See motion work"
+  },
+  {
+    "id": "ai-automation",
+    "title": "AI Automation & Workflows",
+    "subtitle": "Automate your content and client pipeline — from brief to delivery — with custom AI workflows.",
+    "image": "assets/motion/thumbs/pulse.jpg",
+    "url": "chat.html",
+    "cta": "Let's talk"
+  },
+  {
+    "id": "ai-consulting",
+    "title": "AI Consulting",
+    "subtitle": "Strategy sessions to bring AI into your business the right way and actually ship results.",
+    "image": "assets/motion/thumbs/lumen.jpg",
+    "url": "chat.html",
+    "cta": "Book a chat"
+  },
+  {
+    "id": "saas-products",
+    "title": "SaaS Products",
+    "subtitle": "A portfolio of bootstrapped tools you can use today.",
+    "image": "assets/img/projects/project-2.webp",
+    "url": "products.html",
+    "cta": "Browse products"
+  }
+]

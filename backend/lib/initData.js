@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { DATA_DIR, SEED_DIR, BACKEND_DIR, ensureDirs } = require('./paths');
 
-const CONTENT_FILES = ['posts.json', 'motion.json', 'products.json', 'timeline.json', 'tools.json', 'videos.json', 'settings.json'];
+const CONTENT_FILES = ['posts.json', 'motion.json', 'products.json', 'services.json', 'timeline.json', 'tools.json', 'videos.json', 'settings.json'];
 
 function copyIfMissing(name, fromDir) {
   const dest = path.join(DATA_DIR, name);
