@@ -56,10 +56,7 @@
     font-size: 12px; color: #8a90a0; font-weight: 600;
     display: inline-flex; align-items: center; gap: 5px; padding: 0 4px;
 }
-.msg-badge {
-    display: inline-grid; place-items: center; width: 14px; height: 14px;
-    border-radius: 50%; background: #1d9bf0; color: #fff; font-size: 9px; line-height: 1;
-}
+.ig-badge { flex: 0 0 auto; display: inline-block; vertical-align: middle; }
 /* indent cards & chips to line up under the bot's bubble */
 .chat-cards, .chat-chips { margin-left: 44px; }
 
