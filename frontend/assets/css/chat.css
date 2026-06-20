@@ -27,18 +27,41 @@
 }
 
 .bot-message {
-    align-self: flex-start;
     background-color: #2d2d2d;
     color: #e0e0e0;
     border-bottom-left-radius: 4px;
 }
 
 .user-message {
-    align-self: flex-end;
     background-color: #4770ff; /* site accent */
     color: #fff;
     border-bottom-right-radius: 4px;
 }
+
+/* ---------- Message rows with profiles ---------- */
+.msg-row { display: flex; gap: 10px; align-items: flex-start; max-width: 90%; }
+.msg-row.bot { align-self: flex-start; }
+.msg-row.user { align-self: flex-end; flex-direction: row-reverse; }
+.msg-av {
+    flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; overflow: hidden;
+    display: grid; place-items: center; font-weight: 700; font-size: 15px;
+}
+.bot-av { background: #0d0f17; border: 1px solid #2a2c38; }
+.bot-av img { width: 100%; height: 100%; object-fit: cover; }
+.user-av { background: linear-gradient(135deg, #4770ff, #7c4dff); color: #fff; }
+.msg-col { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.msg-row.user .msg-col { align-items: flex-end; }
+.msg-col .message { max-width: 100%; }
+.msg-name {
+    font-size: 12px; color: #8a90a0; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 5px; padding: 0 4px;
+}
+.msg-badge {
+    display: inline-grid; place-items: center; width: 14px; height: 14px;
+    border-radius: 50%; background: #1d9bf0; color: #fff; font-size: 9px; line-height: 1;
+}
+/* indent cards & chips to line up under the bot's bubble */
+.chat-cards, .chat-chips { margin-left: 44px; }
 
 .input-area {
     display: flex;

@@ -68,10 +68,11 @@
   }
 
   function run(posts) {
-    const slug = new URLSearchParams(location.search).get("slug");
+    const pm = location.pathname.match(/\/blog\/([^\/?#]+)/);
+    const slug = pm ? decodeURIComponent(pm[1]) : new URLSearchParams(location.search).get("slug");
     const post = posts.find((p) => (p.slug || p.id) === slug) || posts[0];
     if (!post) {
-      root.innerHTML = '<div class="article-wrap"><a class="article-back" href="blog.html">← Back to Blog</a><h1 class="article-title">Post not found</h1></div>';
+      root.innerHTML = '<div class="article-wrap"><a class="article-back" href="/blog">← Back to Blog</a><h1 class="article-title">Post not found</h1></div>';
       return;
     }
     document.title = "PeroTech — " + post.title;
@@ -79,14 +80,14 @@
     const bodyHtml = (post.blocks || []).map(renderBlock).join("");
     const more = posts.filter((p) => (p.slug || p.id) !== (post.slug || post.id)).slice(0, 2);
     const moreHtml = more.length
-      ? `<div class="article-more"><h3>More articles</h3><div class="blog-grid">${more.map((p) => `<a class="blog-card" href="article.html?slug=${encodeURIComponent(p.slug || p.id)}"><div class="blog-card-thumb">${p.category ? `<span class="blog-card-cat">${p.category}</span>` : ""}${BADGES[p.badge] || ""}<img src="${p.cover}" alt="${esc(p.title)}" loading="lazy" /></div><div class="blog-card-body"><div class="blog-card-meta">${fmtDate(p.date)}</div><h3 class="blog-card-title">${esc(p.title)}</h3><span class="blog-card-more">Read article →</span></div></a>`).join("")}</div></div>`
+      ? `<div class="article-more"><h3>More articles</h3><div class="blog-grid">${more.map((p) => `<a class="blog-card" href="/blog/${encodeURIComponent(p.slug || p.id)}"><div class="blog-card-thumb">${p.category ? `<span class="blog-card-cat">${p.category}</span>` : ""}${BADGES[p.badge] || ""}<img src="${p.cover}" alt="${esc(p.title)}" loading="lazy" /></div><div class="blog-card-body"><div class="blog-card-meta">${fmtDate(p.date)}</div><h3 class="blog-card-title">${esc(p.title)}</h3><span class="blog-card-more">Read article →</span></div></a>`).join("")}</div></div>`
       : "";
 
     root.innerHTML = `
       <div class="article-layout">
         ${shareRail(post.title)}
         <article class="article-wrap">
-          <a class="article-back" href="blog.html">← Back to Blog</a>
+          <a class="article-back" href="/blog">← Back to Blog</a>
           <div class="article-tags">
             ${post.category ? `<span class="article-cat">${esc(post.category)}</span>` : ""}
             ${post.badge === "hot" ? '<span class="article-badge hot">🔥 Hot</span>' : ""}
@@ -159,6 +160,9 @@
         </form>
         <div class="comment-list" id="comment-list"><div class="cmt-empty">Loading…</div></div>
       </section>`;
+
+    const cmtLink = root.querySelector(".engage-comments-link");
+    if (cmtLink) cmtLink.addEventListener("click", (e) => { e.preventDefault(); const c = document.getElementById("comments"); if (c) c.scrollIntoView({ behavior: "smooth" }); });
 
     const likeBtn = document.getElementById("like-btn");
     const likeCount = document.getElementById("like-count");

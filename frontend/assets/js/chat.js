@@ -20,13 +20,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const scroll = () => { messagesEl.scrollTop = messagesEl.scrollHeight; };
 
+  function avatarFor(who) {
+    if (who === "user") {
+      const n = leadName();
+      const initials = n ? esc(n.trim().charAt(0).toUpperCase()) : "🙂";
+      return `<div class="msg-av user-av">${initials}</div>`;
+    }
+    return `<div class="msg-av bot-av"><img src="/assets/img/images/profile-large.webp" alt="PeroTech" /></div>`;
+  }
+  function senderName(who) {
+    if (who === "user") { const n = leadName(); return n ? esc(n.split(" ")[0]) : "You"; }
+    return 'PeroTech <span class="msg-badge">✓</span>';
+  }
   function addBubble(text, who) {
-    const div = document.createElement("div");
-    div.className = "message " + (who === "user" ? "user-message" : "bot-message");
-    div.textContent = text;
-    messagesEl.appendChild(div);
+    const row = document.createElement("div");
+    row.className = "msg-row " + (who === "user" ? "user" : "bot");
+    row.innerHTML = `${avatarFor(who)}<div class="msg-col"><div class="msg-name">${senderName(who)}</div><div class="message ${who === "user" ? "user-message" : "bot-message"}"></div></div>`;
+    row.querySelector(".message").textContent = text;
+    messagesEl.appendChild(row);
     scroll();
-    return div;
+    return row;
   }
 
   function cardHtml(c) {
@@ -73,11 +86,11 @@ document.addEventListener("DOMContentLoaded", () => {
   function clearChips() { messagesEl.querySelectorAll(".chat-chips").forEach((e) => e.remove()); }
 
   function showTyping() {
-    const div = document.createElement("div");
-    div.className = "message bot-message typing";
-    div.id = "typing";
-    div.innerHTML = "<span></span><span></span><span></span>";
-    messagesEl.appendChild(div);
+    const row = document.createElement("div");
+    row.className = "msg-row bot";
+    row.id = "typing";
+    row.innerHTML = `${avatarFor("bot")}<div class="msg-col"><div class="message bot-message typing"><span></span><span></span><span></span></div></div>`;
+    messagesEl.appendChild(row);
     scroll();
   }
   function hideTyping() { const t = document.getElementById("typing"); if (t) t.remove(); }

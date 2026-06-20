@@ -13,7 +13,7 @@
 
   function card(p) {
     return `
-      <a class="blog-card" href="article.html?slug=${encodeURIComponent(p.slug || p.id)}">
+      <a class="blog-card" href="/blog/${encodeURIComponent(p.slug || p.id)}">
         <div class="blog-card-thumb">
           ${p.category ? `<span class="blog-card-cat">${p.category}</span>` : ""}
           ${BADGES[p.badge] || ""}
