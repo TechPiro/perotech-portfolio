@@ -1,1 +1,12 @@
-/* icon-fixes: intentionally empty */
+/* icon-fixes */
+
+/* New @PeroTechie logo (avatar + handle + verified badge).
+   Pin to a fixed height so it stays crisp and keeps the same footprint as the
+   old wordmark instead of being sized by the legacy `width:85%` rule. */
+.navbar-brand img {
+  width: auto !important;
+  height: 44px !important;
+}
+@media (max-width: 575px) {
+  .navbar-brand img { height: 38px !important; }
+}
