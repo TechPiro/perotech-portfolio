@@ -817,22 +817,58 @@ function uploadField(label, id, val, accept) {
     <div class="upload-prev" id="${id}-prev">${val ? `<img src="/${esc(val)}" alt="" onerror="this.style.display='none'"/>` : ""}</div>
   </div>`;
 }
+// Upload via XHR so we can show real upload progress (fetch has no progress API).
+function xhrUpload(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", API + "/upload");
+    xhr.setRequestHeader("Authorization", "Bearer " + TOKEN);
+    xhr.upload.onprogress = (ev) => {
+      if (ev.lengthComputable) onProgress(ev.loaded / ev.total, ev.loaded, ev.total);
+    };
+    xhr.onload = () => {
+      let data = {};
+      try { data = JSON.parse(xhr.responseText || "{}"); } catch (e) {}
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+      else reject(new Error(data.error || (xhr.status === 413 ? "File is too large." : "Upload failed")));
+    };
+    xhr.onerror = () => reject(new Error("Network error during upload"));
+    const fd = new FormData();
+    fd.append("file", file);
+    xhr.send(fd);
+  });
+}
+
 // Delegated upload handler (works for fields injected into modals/views)
 document.addEventListener("change", async (e) => {
   const inp = e.target;
   if (!(inp.matches && inp.matches("input[type=file][data-target]")) || !inp.files || !inp.files[0]) return;
   const targetId = inp.dataset.target;
-  const fd = new FormData();
-  fd.append("file", inp.files[0]);
+  const file = inp.files[0];
   const lbl = inp.closest(".upload-label"); const prevTxt = lbl ? lbl.childNodes[0].nodeValue : null;
   if (lbl) lbl.childNodes[0].nodeValue = "Uploading…";
+
+  // Progress bar rendered into the preview slot for this field.
+  const prev = document.getElementById(targetId + "-prev");
+  const humanMB = (b) => (b / (1024 * 1024)).toFixed(1) + " MB";
+  if (prev) {
+    prev.innerHTML =
+      `<div class="upload-progress"><div class="up-bar"><div class="up-fill" style="width:0%"></div></div>` +
+      `<div class="up-meta"><span class="up-pct">0%</span><span class="up-bytes">0 / ${humanMB(file.size)}</span></div></div>`;
+  }
+  const fill = prev && prev.querySelector(".up-fill");
+  const pctEl = prev && prev.querySelector(".up-pct");
+  const bytesEl = prev && prev.querySelector(".up-bytes");
+
   try {
-    const res = await fetch(API + "/upload", { method: "POST", headers: { Authorization: "Bearer " + TOKEN }, body: fd });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Upload failed");
+    const data = await xhrUpload(file, (frac, loaded, total) => {
+      const pct = Math.round(frac * 100);
+      if (fill) fill.style.width = pct + "%";
+      if (pctEl) pctEl.textContent = pct + "%";
+      if (bytesEl) bytesEl.textContent = humanMB(loaded) + " / " + humanMB(total);
+    });
     const t = document.getElementById(targetId); if (t) t.value = data.path;
     const isImg = /\.(png|jpe?g|gif|webp|svg|avif|bmp)$/i.test(data.path);
-    const prev = document.getElementById(targetId + "-prev");
     if (prev) prev.innerHTML = isImg
       ? `<img src="/${data.path}" alt="" onerror="this.style.display='none'"/>`
       : `<span class="upload-chip">${esc(data.name || data.path)}${data.size ? " · " + esc(data.size) : ""}</span>`;
@@ -840,7 +876,10 @@ document.addEventListener("change", async (e) => {
     if (inp.dataset.nameTarget) { const n = document.getElementById(inp.dataset.nameTarget); if (n && !n.value) n.value = data.name || ""; }
     if (inp.dataset.sizeTarget) { const z = document.getElementById(inp.dataset.sizeTarget); if (z) z.value = data.size || ""; }
     toast("Uploaded ✓");
-  } catch (err) { toast(err.message, "err"); }
+  } catch (err) {
+    if (prev) prev.innerHTML = "";
+    toast(err.message, "err");
+  }
   finally { if (lbl && prevTxt !== null) lbl.childNodes[0].nodeValue = prevTxt; inp.value = ""; }
 });
 

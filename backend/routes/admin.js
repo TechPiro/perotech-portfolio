@@ -15,7 +15,8 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + '-' + safe);
   },
 });
-const upload = multer({ storage, limits: { fileSize: 25 * 1024 * 1024 } });
+const MAX_UPLOAD_MB = 125; // allow files up to ~120MB (see Nginx / Cloudflare notes)
+const upload = multer({ storage, limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024 } });
 
 const { readJSON, writeJSON } = require('../lib/store');
 const { issue, requireAuth } = require('../lib/auth');
@@ -53,7 +54,16 @@ const humanSize = (bytes) => {
   while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
   return (n >= 10 || i === 0 ? Math.round(n) : Math.round(n * 10) / 10) + ' ' + u[i];
 };
-router.post('/upload', upload.single('file'), (req, res) => {
+const uploadSingle = (req, res, next) => upload.single('file')(req, res, (err) => {
+  if (err) {
+    const tooBig = err.code === 'LIMIT_FILE_SIZE';
+    return res.status(tooBig ? 413 : 400).json({
+      error: tooBig ? `File is too large. Maximum size is ${MAX_UPLOAD_MB}MB.` : (err.message || 'Upload failed'),
+    });
+  }
+  next();
+});
+router.post('/upload', uploadSingle, (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   res.json({
     path: 'assets/uploads/' + req.file.filename,

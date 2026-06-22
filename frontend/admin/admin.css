@@ -215,6 +215,11 @@ button { font-family: inherit; cursor: pointer; }
 .upload-prev img { max-height: 70px; max-width: 160px; border-radius: 8px; border: 1px solid var(--border); object-fit: cover; }
 .upload-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #c4c9d4; background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; word-break: break-all; }
 .upload-chip::before { content: "📎"; }
+.upload-progress { margin-top: 4px; max-width: 280px; }
+.upload-progress .up-bar { height: 8px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--border); overflow: hidden; }
+.upload-progress .up-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #4770ff, #7c4dff); transition: width 0.15s ease; }
+.upload-progress .up-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 0.72rem; color: var(--muted); margin-top: 5px; }
+.upload-progress .up-pct { font-weight: 700; color: #c4c9d4; }
 .pill.hot { background: rgba(239, 68, 68, 0.18); color: #fda4a4; }
 .pill.trending { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
 .empty { color: var(--muted); text-align: center; padding: 30px; }
