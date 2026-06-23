@@ -43,16 +43,28 @@ router.post('/posts/:id/like', (req, res) => {
 // ---------- Blog comments ----------
 router.get('/posts/:id/comments', (req, res) => {
   const all = readJSON('comments.json', []);
-  res.json(all.filter((c) => c.postId === req.params.id).sort((a, b) => b.ts - a.ts));
+  // Never expose stored visitor IPs to the public.
+  const pub = all
+    .filter((c) => c.postId === req.params.id)
+    .sort((a, b) => b.ts - a.ts)
+    .map(({ ip, ...rest }) => rest);
+  res.json(pub);
 });
 router.post('/posts/:id/comments', (req, res) => {
   const name = String((req.body && req.body.name) || '').trim().slice(0, 60);
   const text = String((req.body && req.body.text) || '').trim().slice(0, 2000);
   if (!name || !text) return res.status(400).json({ error: 'Name and comment are required' });
   const all = readJSON('comments.json', []);
+  // Optional reply target — single-level threads (replies to a reply attach to its top parent).
+  let parentId = String((req.body && req.body.parentId) || '').slice(0, 40) || null;
+  if (parentId) {
+    const parent = all.find((c) => c.id === parentId && c.postId === req.params.id);
+    if (!parent) parentId = null;
+    else if (parent.parentId) parentId = parent.parentId;
+  }
   let ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || '';
   ip = ip.replace(/^::ffff:/, '');
-  const comment = { id: 'c' + Date.now() + Math.random().toString(36).slice(2, 6), postId: req.params.id, name, text, ts: Date.now(), date: new Date().toISOString(), ip };
+  const comment = { id: 'c' + Date.now() + Math.random().toString(36).slice(2, 6), postId: req.params.id, name, text, ts: Date.now(), date: new Date().toISOString(), ip, parentId };
   all.push(comment);
   if (all.length > 20000) all.splice(0, all.length - 20000);
   writeJSON('comments.json', all);

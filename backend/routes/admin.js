@@ -2,8 +2,23 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const multer = require('multer');
 const router = express.Router();
+
+// ---------- Brute-force protection for /login ----------
+const MAX_ATTEMPTS = 5;            // failures before lockout
+const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+const LOCK_MS = 15 * 60 * 1000;
+const loginAttempts = new Map();   // ip -> { count, first, lockUntil }
+const clientIp = (req) =>
+  ((req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown').replace(/^::ffff:/, '');
+// Constant-time string comparison (avoids credential timing leaks).
+function safeEqual(a, b) {
+  const ba = Buffer.from(String(a)); const bb = Buffer.from(String(b));
+  if (ba.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ba, bb);
+}
 
 // ---------- File uploads ----------
 const { UPLOAD_DIR } = require('../lib/paths');
@@ -21,7 +36,7 @@ const upload = multer({ storage, limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024
 const { readJSON, writeJSON } = require('../lib/store');
 const { issue, requireAuth } = require('../lib/auth');
 const { createTransporter, mailFrom, brandAttachments, smtpConfigured } = require('../lib/mailer');
-const { getBroadcastTemplate, renderEmailBlocks } = require('../emailTemplates');
+const { getBroadcastTemplate, renderEmailBlocks, getAnnouncementTemplate } = require('../emailTemplates');
 const { countryName, flagEmoji, suggestionFor } = require('../lib/geo');
 
 // Subscribers live in DATA_DIR (persistent) via the shared store.
@@ -31,15 +46,90 @@ const writeSubs = (s) => writeJSON('subscribers.json', s);
 const slugify = (s) =>
   String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'item-' + Date.now();
 
+// ---------- Auto-announce new content to newsletter subscribers ----------
+const ANNOUNCE = {
+  posts: { label: 'New Article', emoji: '📝', cta: 'Read the full article' },
+  products: { label: 'New Product', emoji: '🚀', cta: 'Check it out' },
+  services: { label: 'New Service', emoji: '✨', cta: 'Learn more' },
+};
+const isExternal = (u) => /^https?:\/\//i.test(u || '');
+function announceLink(name, item, baseUrl) {
+  if (name === 'posts') return baseUrl + '/blog/' + (item.slug || item.id);
+  if (name === 'products') return isExternal(item.url) ? item.url : baseUrl + '/products';
+  if (name === 'services') {
+    if (isExternal(item.url)) return item.url;
+    const u = String(item.url || '').replace(/\.html$/i, '').replace(/^\//, '');
+    return baseUrl + '/' + (u || 'index');
+  }
+  return baseUrl;
+}
+// Fire-and-forget: emails a polished announcement card to every subscriber.
+async function notifySubscribers(name, item, baseUrl, recipients) {
+  const meta = ANNOUNCE[name];
+  if (!meta) return;
+  const subs = recipients || readSubs();
+  if (!subs.length) return;
+  const { html, attachments: thumbAtt } = getAnnouncementTemplate({
+    label: meta.label, emoji: meta.emoji, ctaLabel: meta.cta,
+    title: item.title, excerpt: item.excerpt || item.subtitle || '',
+    imageSrc: item.cover || item.image || '', link: announceLink(name, item, baseUrl),
+  }, { baseUrl });
+  const attachments = brandAttachments().concat(thumbAtt);
+  const subject = `${meta.label}: ${item.title}`;
+  let transporter;
+  try { transporter = await createTransporter(); }
+  catch (e) { console.error('[notify] transport error:', e.message); return; }
+  let sent = 0, failed = 0;
+  for (const sub of subs) {
+    try { await transporter.sendMail({ from: mailFrom(), to: sub.email, subject, html, attachments }); sent++; }
+    catch (e) { failed++; if (failed <= 3) console.error('[notify]', sub.email, e.message); }
+  }
+  console.log(`[notify] ${name} "${item.title}" → sent ${sent}, failed ${failed} of ${subs.length}`);
+}
+
 // ---------- Auth ----------
 router.post('/login', (req, res) => {
+  const ip = clientIp(req);
+  const now = Date.now();
+  const rec = loginAttempts.get(ip);
+  if (rec && rec.lockUntil && now < rec.lockUntil) {
+    const mins = Math.ceil((rec.lockUntil - now) / 60000);
+    return res.status(429).json({ error: `Too many failed attempts. Try again in ${mins} minute(s).` });
+  }
   const { username, password } = req.body || {};
   const U = process.env.ADMIN_USER || 'admin';
   const P = process.env.ADMIN_PASS || 'perotech123';
-  if (username === U && password === P) {
+  if (safeEqual(username, U) && safeEqual(password, P)) {
+    loginAttempts.delete(ip);
     return res.json({ token: issue(username), user: username });
   }
+  // Record failure; lock the IP after MAX_ATTEMPTS within the window.
+  const r = rec && (now - rec.first < ATTEMPT_WINDOW_MS) ? rec : { count: 0, first: now };
+  r.count += 1;
+  if (r.count >= MAX_ATTEMPTS) { r.lockUntil = now + LOCK_MS; r.count = 0; r.first = now; }
+  loginAttempts.set(ip, r);
+  // Light prune so the map can't grow unbounded.
+  if (loginAttempts.size > 5000) {
+    for (const [k, v] of loginAttempts) { if ((!v.lockUntil || now > v.lockUntil) && now - v.first > ATTEMPT_WINDOW_MS) loginAttempts.delete(k); }
+  }
   res.status(401).json({ error: 'Invalid username or password' });
+});
+
+// Large uploads come from the main site but POST to a DNS-only upload subdomain
+// (to dodge Cloudflare's 100MB cap), so the /upload route needs CORS. This must
+// sit BEFORE requireAuth because the browser's preflight OPTIONS has no token.
+const ALLOWED_ORIGINS = (process.env.SITE_ORIGINS ||
+  'https://perotechie.com,https://www.perotechie.com').split(',').map((s) => s.trim());
+router.use('/upload', (req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
 });
 
 router.use(requireAuth); // everything below requires a valid token
@@ -79,8 +169,10 @@ Object.entries(COLLECTIONS).forEach(([name, file]) => {
   router.get(`/${name}`, (req, res) => res.json(readJSON(file, [])));
 
   router.post(`/${name}`, (req, res) => {
+    const raw = req.body || {};
+    const notify = raw.notify; // control flag — not persisted with the item
+    const body = { ...raw }; delete body.notify;
     const items = readJSON(file, []);
-    const body = req.body || {};
     let id = body.id || body.slug || slugify(body.title);
     // ensure unique id
     let base = id, n = 2;
@@ -89,7 +181,18 @@ Object.entries(COLLECTIONS).forEach(([name, file]) => {
     if (name === 'posts') item.slug = id;
     items.unshift(item);
     writeJSON(file, items);
-    res.json(item);
+
+    // Auto-announce new posts/products/services to subscribers (opt-out via notify:false).
+    let emailQueued = 0;
+    if (ANNOUNCE[name] && notify !== false && smtpConfigured()) {
+      const recipients = readSubs();
+      emailQueued = recipients.length;
+      if (emailQueued) {
+        const baseUrl = process.env.PUBLIC_URL || (req.protocol + '://' + req.get('host'));
+        notifySubscribers(name, item, baseUrl, recipients).catch((e) => console.error('[notify]', e.message));
+      }
+    }
+    res.json({ ...item, emailQueued });
   });
 
   router.put(`/${name}/:id`, (req, res) => {
@@ -136,9 +239,32 @@ router.get('/comments', (req, res) => {
   posts.forEach((p) => (title[p.slug || p.id] = p.title));
   res.json(all.slice().sort((a, b) => b.ts - a.ts).map((c) => ({ ...c, postTitle: title[c.postId] || c.postId })));
 });
+// Author reply — posts an authenticated, verified reply to a visitor comment.
+router.post('/comments/:id/reply', (req, res) => {
+  const text = String((req.body && req.body.text) || '').trim().slice(0, 2000);
+  if (!text) return res.status(400).json({ error: 'Reply text is required' });
+  const all = readJSON('comments.json', []);
+  const parent = all.find((c) => c.id === req.params.id);
+  if (!parent) return res.status(404).json({ error: 'Comment not found' });
+  const settings = readJSON('settings.json', {});
+  const reply = {
+    id: 'c' + Date.now() + Math.random().toString(36).slice(2, 6),
+    postId: parent.postId,
+    name: settings.name || 'PeroTech',
+    text,
+    ts: Date.now(),
+    date: new Date().toISOString(),
+    parentId: parent.parentId || parent.id, // keep single-level threads
+    byAuthor: true,
+  };
+  all.push(reply);
+  writeJSON('comments.json', all);
+  res.json(reply);
+});
 router.delete('/comments/:id', (req, res) => {
   const all = readJSON('comments.json', []);
-  const next = all.filter((c) => c.id !== req.params.id);
+  // Deleting a comment also removes its replies.
+  const next = all.filter((c) => c.id !== req.params.id && c.parentId !== req.params.id);
   writeJSON('comments.json', next);
   res.json({ ok: true, removed: all.length - next.length });
 });

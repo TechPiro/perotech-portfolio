@@ -24,6 +24,17 @@ const NOTIFY_EMAIL = process.env.NOTIFY_EMAIL || '';
 // detection and the real visitor IP (used for geo analytics) work correctly.
 app.set('trust proxy', 1);
 
+// ---------- Security headers ----------
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', req.path.startsWith('/admin') ? 'DENY' : 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  if (req.secure) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '6mb' }));
@@ -179,5 +190,12 @@ app.listen(PORT, () => {
     if (NOTIFY_EMAIL) console.log(`🔔 New-subscriber notifications go to ${NOTIFY_EMAIL}`);
   } else {
     console.log('✉️  Mail: TEST mode (Ethereal). Add SMTP settings to backend/.env for real email.');
+  }
+  // Production safety: refuse to run silently with insecure defaults.
+  if (process.env.NODE_ENV === 'production') {
+    if (!process.env.ADMIN_SECRET || process.env.ADMIN_SECRET === 'perotech-dev-secret-change-me')
+      console.warn('⚠️  SECURITY: set a strong ADMIN_SECRET in backend/.env (tokens are signed with it).');
+    if (!process.env.ADMIN_PASS || process.env.ADMIN_PASS === 'perotech123')
+      console.warn('⚠️  SECURITY: change the default ADMIN_PASS in backend/.env.');
   }
 });

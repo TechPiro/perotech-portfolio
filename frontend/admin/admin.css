@@ -225,3 +225,10 @@ button { font-family: inherit; cursor: pointer; }
 .empty { color: var(--muted); text-align: center; padding: 30px; }
 .help { color: var(--muted); font-size: 0.82rem; margin-top: 6px; }
 .checkbox { width: 16px; height: 16px; accent-color: var(--accent); }
+
+/* Notify-subscribers toggle in editors */
+.notify-row { display: flex; align-items: flex-start; gap: 11px; margin: 18px 0 4px; padding: 14px 16px;
+  background: rgba(71,112,255,0.08); border: 1px solid rgba(71,112,255,0.28); border-radius: 12px; cursor: pointer; }
+.notify-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); margin-top: 1px; flex: 0 0 auto; }
+.notify-row span { display: flex; flex-direction: column; gap: 3px; font-size: 0.9rem; color: var(--text); }
+.notify-row small { color: var(--muted); font-size: 0.78rem; font-weight: 400; line-height: 1.45; }

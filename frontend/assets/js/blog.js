@@ -11,6 +11,11 @@
     trending: '<span class="blog-card-badge trending">📈 Trending</span>',
   };
 
+  let SETTINGS = {};
+  const DEFAULT_AVATAR = "assets/img/images/profile-large.webp";
+  const authorAvatar = (p) => p.authorAvatar || SETTINGS.photo || DEFAULT_AVATAR;
+  const authorName = (p) => p.author || SETTINGS.name || "PeroTech";
+
   function card(p) {
     return `
       <a class="blog-card" href="/blog/${encodeURIComponent(p.slug || p.id)}">
@@ -23,7 +28,11 @@
           <div class="blog-card-meta">${fmtDate(p.date)}${p.readTime ? " · " + p.readTime : ""}</div>
           <h3 class="blog-card-title">${p.title}</h3>
           <p class="blog-card-excerpt">${p.excerpt || ""}</p>
-          <span class="blog-card-more">Read article →</span>
+          <div class="blog-card-author">
+            <img class="bca-av" src="/${authorAvatar(p)}" alt="${authorName(p)}" loading="lazy" onerror="this.style.display='none'" />
+            <span class="bca-name">${authorName(p)}</span>
+            <span class="blog-card-more">Read article →</span>
+          </div>
         </div>
       </a>`;
   }
@@ -51,8 +60,11 @@
       section("🆕", "Latest articles", posts.length + " posts", posts);
   }
 
-  fetch("/api/posts")
-    .then((r) => r.json())
-    .then(render)
-    .catch(() => render(window.BLOG_POSTS || []));
+  fetch("/api/settings").then((r) => r.json()).then((s) => { SETTINGS = s || {}; }).catch(() => {})
+    .finally(() => {
+      fetch("/api/posts")
+        .then((r) => r.json())
+        .then(render)
+        .catch(() => render(window.BLOG_POSTS || []));
+    });
 })();

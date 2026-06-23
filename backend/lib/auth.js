@@ -28,9 +28,11 @@ function verify(token) {
   }
 }
 
-// 7-day token
+// Absolute session lifetime (idle logout is handled client-side). Default 12h.
+const TTL_HOURS = Number(process.env.ADMIN_TOKEN_TTL_HOURS) || 12;
 function issue(user) {
-  return sign({ user, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 });
+  const now = Date.now();
+  return sign({ user, iat: now, exp: now + TTL_HOURS * 60 * 60 * 1000 });
 }
 
 function requireAuth(req, res, next) {

@@ -107,6 +107,63 @@ function getBroadcastTemplate({ heading, bodyHtml, name }) {
   return shell(HEADER + body + FOOTER);
 }
 
+// Announcement email for newly published content (post / product / service).
+// Polished card: kind pill, thumbnail, title, excerpt, "Read more" button, signature.
+// The thumbnail is embedded as an inline CID image so it renders in every inbox.
+// Returns { html, attachments }.
+function getAnnouncementTemplate(data, opts) {
+  data = data || {}; opts = opts || {};
+  const base = String(opts.baseUrl || '').replace(/\/+$/, '');
+  const attachments = [];
+  const absUrl = (src) => {
+    if (!src) return '';
+    if (/^https?:\/\//i.test(src) || /^mailto:/i.test(src)) return src;
+    return base + '/' + String(src).replace(/^\//, '');
+  };
+  // Resolve the thumbnail to an inline CID attachment when it's a local file.
+  let thumbSrc = '';
+  if (data.imageSrc) {
+    if (!/^https?:\/\//i.test(data.imageSrc)) {
+      const file = path.join(FRONTEND_DIR, String(data.imageSrc).replace(/^\//, ''));
+      if (fs.existsSync(file)) {
+        attachments.push({ filename: path.basename(file), path: file, cid: 'annthumb' });
+        thumbSrc = 'cid:annthumb';
+      } else thumbSrc = absUrl(data.imageSrc);
+    } else thumbSrc = data.imageSrc;
+  }
+  const link = absUrl(data.link);
+  const cta = data.ctaLabel || 'Read more';
+  const label = data.label || 'New';
+  const emoji = data.emoji || '✨';
+  const title = (data.title || '').replace(/</g, '&lt;');
+  const altTitle = (data.title || '').replace(/"/g, '&quot;');
+  const excerpt = data.excerpt
+    ? `<p style="margin:0 0 24px;color:#5b6472;font-size:16px;line-height:1.65;">${String(data.excerpt).replace(/</g, '&lt;')}</p>` : '';
+  const thumb = thumbSrc ? `
+      <a href="${link}" style="text-decoration:none;display:block;margin:0 0 24px;">
+        <img src="${thumbSrc}" alt="${altTitle}" width="544"
+             style="display:block;width:100%;max-width:544px;height:auto;border-radius:14px;border:1px solid #e6ebf1;" />
+      </a>` : '';
+  const body = `
+    <tr><td style="background:#ffffff;border-radius:14px;padding:28px 28px 30px;color:#3f4754;">
+      <div style="margin-bottom:20px;"><span style="display:inline-block;background:#eef3ff;color:#3358e0;font-size:12px;font-weight:bold;letter-spacing:0.04em;text-transform:uppercase;padding:6px 14px;border-radius:999px;">${emoji}&nbsp; ${label}</span></div>
+      ${thumb}
+      <h1 style="margin:0 0 12px;font-size:25px;line-height:1.25;color:#10151f;">${title}</h1>
+      ${excerpt}
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:2px 0 4px;"><tr>
+        <td style="border-radius:999px;background:#4770ff;">
+          <a href="${link}" style="display:inline-block;padding:13px 30px;color:#ffffff;font-weight:bold;font-size:15px;text-decoration:none;border-radius:999px;">${cta} &nbsp;&rarr;</a>
+        </td></tr></table>
+      <hr style="border:none;border-top:1px solid #e6ebf1;margin:28px 0 22px;" />
+      <p style="margin:0 0 4px;color:#3f4754;font-size:15px;">Until next time,</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:12px;"><tr>
+        <td style="vertical-align:middle;"><img src="cid:avatar" width="54" height="54" alt="PeroTech" style="display:block;border-radius:50%;" /></td>
+        <td style="vertical-align:middle;padding-left:16px;"><img src="cid:signature" height="42" alt="PeroTech" style="display:block;" /></td>
+      </tr></table>
+    </td></tr>`;
+  return { html: shell(HEADER + body + FOOTER), attachments };
+}
+
 // Turn the admin's content blocks into email-safe HTML.
 // - Images are embedded as inline CID attachments (always render, even from localhost).
 // - Files / videos / buttons link out via absolute URLs (use PUBLIC_URL when live).
@@ -183,4 +240,4 @@ function renderEmailBlocks(blocks, opts) {
   return { html, attachments };
 }
 
-module.exports = { getWelcomeTemplate, getNotificationTemplate, getBroadcastTemplate, renderEmailBlocks };
+module.exports = { getWelcomeTemplate, getNotificationTemplate, getBroadcastTemplate, getAnnouncementTemplate, renderEmailBlocks };

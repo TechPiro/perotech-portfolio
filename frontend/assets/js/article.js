@@ -6,6 +6,16 @@
   const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const fmtDate = (d) => new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
+  // Authentic Instagram verified seal (shown beside the author name)
+  const IG_VERIFIED = '<svg class="ig-badge" viewBox="0 0 40 40" width="16" height="16" role="img" aria-label="Verified"><path fill="#3897f0" fill-rule="evenodd" d="M19.998 3.094 14.638 0l-2.972 5.15H5.432v6.354L0 14.64 3.094 20 0 25.359l5.432 3.137v5.905h5.975L14.638 40l5.36-3.094L25.358 40l3.232-5.6h6.162v-6.01L40 25.359 36.905 20 40 14.641l-5.248-3.03v-6.46h-6.419L25.358 0l-5.36 3.094Z"/><polygon fill="#fff" fill-rule="evenodd" points="28.157 12.358 24.072 16.443 17.072 23.443 12.831 19.202 9.992 22.041 17.072 29.121 30.996 15.197"/></svg>';
+
+  let SETTINGS = {};
+  const DEFAULT_AVATAR = "assets/img/images/profile-large.webp";
+  const authorAvatar = (post) => post.authorAvatar || SETTINGS.photo || DEFAULT_AVATAR;
+  const authorName = (post) => post.author || SETTINGS.name || "PeroTech";
+  // PeroTech (the brand) is verified; guest authors are not.
+  const isVerifiedAuthor = (post) => authorName(post).toLowerCase().includes("perotech");
+
   const BADGES = {
     hot: '<span class="blog-card-badge hot">🔥 Hot</span>',
     trending: '<span class="blog-card-badge trending">📈 Trending</span>',
@@ -94,7 +104,13 @@
             ${post.badge === "trending" ? '<span class="article-badge trending">📈 Trending</span>' : ""}
           </div>
           <h1 class="article-title">${esc(post.title)}</h1>
-          <div class="article-meta"><span>By ${esc(post.author || "PeroTech")}</span><span class="dot"></span><span>${fmtDate(post.date)}</span>${post.readTime ? `<span class="dot"></span><span>${esc(post.readTime)}</span>` : ""}</div>
+          <div class="article-author">
+            <img class="aa-av" src="/${esc(authorAvatar(post))}" alt="${esc(authorName(post))}" loading="lazy" onerror="this.style.display='none'" />
+            <div class="aa-info">
+              <div class="aa-name">${esc(authorName(post))}${isVerifiedAuthor(post) ? IG_VERIFIED : ""}</div>
+              <div class="aa-meta"><span>${fmtDate(post.date)}</span>${post.readTime ? `<span class="dot"></span><span>${esc(post.readTime)}</span>` : ""}</div>
+            </div>
+          </div>
           ${post.cover ? `<img class="article-cover" src="${post.cover}" alt="${esc(post.title)}" />` : ""}
           <div class="article-body">${bodyHtml}</div>
           <div class="article-engage" id="article-engage"></div>
@@ -128,14 +144,40 @@
   }
   const heart = (filled) => `<svg viewBox="0 0 24 24" width="20" height="20" fill="${filled ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>`;
 
-  function commentRow(c) {
-    const initials = (c.name || "?").trim().slice(0, 1).toUpperCase();
-    const when = new Date(c.ts || c.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-    return `<div class="cmt">
-      <div class="cmt-av">${esc(initials)}</div>
-      <div class="cmt-body">
-        <div class="cmt-head"><b>${esc(c.name)}</b><span>${when}</span></div>
-        <div class="cmt-text">${esc(c.text)}</div>
+  const cmtWhen = (c) => new Date(c.ts || c.date).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  function cmtAvatar(c) {
+    if (c.byAuthor) return `<img class="cmt-av cmt-av-img" src="/${esc(SETTINGS.photo || DEFAULT_AVATAR)}" alt="${esc(c.name)}" onerror="this.style.display='none'" />`;
+    return `<div class="cmt-av">${esc((c.name || "?").trim().slice(0, 1).toUpperCase())}</div>`;
+  }
+  function cmtHead(c) {
+    const tag = c.byAuthor ? `<span class="cmt-author-tag">Author</span>${IG_VERIFIED}` : "";
+    return `<div class="cmt-head"><b>${esc(c.name)}</b>${tag}<span>${cmtWhen(c)}</span></div>`;
+  }
+  function replyRow(c) {
+    return `<div class="cmt reply${c.byAuthor ? " by-author" : ""}">
+      ${cmtAvatar(c)}
+      <div class="cmt-body">${cmtHead(c)}<div class="cmt-text">${esc(c.text)}</div></div>
+    </div>`;
+  }
+  function commentRow(c, replies) {
+    const repliesHtml = (replies && replies.length) ? `<div class="cmt-replies">${replies.map(replyRow).join("")}</div>` : "";
+    return `<div class="cmt-thread" data-cid="${esc(c.id)}">
+      <div class="cmt${c.byAuthor ? " by-author" : ""}">
+        ${cmtAvatar(c)}
+        <div class="cmt-body">
+          ${cmtHead(c)}
+          <div class="cmt-text">${esc(c.text)}</div>
+          <button type="button" class="cmt-reply-btn" data-reply="${esc(c.id)}">↩ Reply</button>
+        </div>
+      </div>
+      ${repliesHtml}
+      <div class="cmt-reply-form" id="rf-${esc(c.id)}" hidden>
+        <input class="cf-name rf-name" placeholder="Your name" maxlength="60" autocomplete="name" />
+        <textarea class="cf-text rf-text" placeholder="Write a reply…" maxlength="2000"></textarea>
+        <div class="cf-actions">
+          <button type="button" class="cf-cancel" data-cancel="${esc(c.id)}">Cancel</button>
+          <button type="button" class="cf-submit" data-send="${esc(c.id)}">Reply</button>
+        </div>
       </div>
     </div>`;
   }
@@ -188,9 +230,40 @@
     const loadComments = () =>
       fetch(`/api/posts/${encodeURIComponent(postId)}/comments`).then((r) => r.json()).then((cs) => {
         cmtCount.textContent = cs.length;
-        list.innerHTML = cs.length ? cs.map(commentRow).join("") : '<div class="cmt-empty">Be the first to comment.</div>';
+        const parents = cs.filter((c) => !c.parentId); // already newest-first from API
+        const byParent = {};
+        cs.filter((c) => c.parentId).forEach((c) => { (byParent[c.parentId] = byParent[c.parentId] || []).push(c); });
+        Object.keys(byParent).forEach((k) => byParent[k].sort((a, b) => a.ts - b.ts)); // replies oldest-first
+        list.innerHTML = parents.length
+          ? parents.map((p) => commentRow(p, byParent[p.id] || [])).join("")
+          : '<div class="cmt-empty">Be the first to comment.</div>';
       }).catch(() => { list.innerHTML = '<div class="cmt-empty">Could not load comments.</div>'; });
     loadComments();
+
+    // Reply: toggle form, cancel, and submit (delegated — forms are injected dynamically)
+    list.addEventListener("click", (e) => {
+      const toggle = e.target.closest("[data-reply]");
+      const cancel = e.target.closest("[data-cancel]");
+      const send = e.target.closest("[data-send]");
+      if (toggle) {
+        const f = document.getElementById("rf-" + toggle.dataset.reply);
+        if (f) { f.hidden = !f.hidden; if (!f.hidden) { const n = f.querySelector(".rf-name"); if (n) n.focus(); } }
+      } else if (cancel) {
+        const f = document.getElementById("rf-" + cancel.dataset.cancel); if (f) f.hidden = true;
+      } else if (send) {
+        const f = document.getElementById("rf-" + send.dataset.send);
+        if (!f) return;
+        const name = f.querySelector(".rf-name").value.trim();
+        const text = f.querySelector(".rf-text").value.trim();
+        if (!name || !text) return;
+        send.disabled = true; send.textContent = "Posting…";
+        fetch(`/api/posts/${encodeURIComponent(postId)}/comments`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, text, parentId: send.dataset.send }),
+        }).then((r) => r.json()).then((d) => { if (d && d.id) loadComments(); })
+          .catch(() => {}).finally(() => { send.disabled = false; send.textContent = "Reply"; });
+      }
+    });
 
     document.getElementById("comment-form").addEventListener("submit", (e) => {
       e.preventDefault();
@@ -207,8 +280,11 @@
     });
   }
 
-  fetch("/api/posts")
-    .then((r) => r.json())
-    .then((posts) => run(posts && posts.length ? posts : window.BLOG_POSTS || []))
-    .catch(() => run(window.BLOG_POSTS || []));
+  fetch("/api/settings").then((r) => r.json()).then((s) => { SETTINGS = s || {}; }).catch(() => {})
+    .finally(() => {
+      fetch("/api/posts")
+        .then((r) => r.json())
+        .then((posts) => run(posts && posts.length ? posts : window.BLOG_POSTS || []))
+        .catch(() => run(window.BLOG_POSTS || []));
+    });
 })();

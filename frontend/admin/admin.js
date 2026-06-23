@@ -1,5 +1,11 @@
 /* ===== PeroTech Admin ===== */
 const API = "/api/admin";
+// Large uploads (up to ~120MB) bypass Cloudflare's 100MB free-plan cap by going
+// to a DNS-only ("grey cloud") subdomain. Everything else stays on this origin.
+const UPLOAD_ORIGIN =
+  (location.hostname === "perotechie.com" || location.hostname === "www.perotechie.com")
+    ? "https://upload.perotechie.com"
+    : ""; // local/dev: same origin
 let TOKEN = localStorage.getItem("pt_admin_token") || "";
 let USER = localStorage.getItem("pt_admin_user") || "admin";
 
@@ -48,16 +54,46 @@ $("#login-form").addEventListener("submit", async (e) => {
   } catch (err) { $("#login-err").textContent = err.message; }
 });
 
-$("#logout").addEventListener("click", logout);
-function logout() {
+$("#logout").addEventListener("click", () => logout("manual"));
+function logout(reason) {
   TOKEN = ""; localStorage.removeItem("pt_admin_token");
+  stopIdleWatch();
   $("#app").classList.add("hidden"); $("#login").classList.remove("hidden");
+  const errEl = $("#login-err");
+  if (errEl) errEl.textContent = reason === "idle" ? "Signed out due to inactivity." : "";
+}
+
+/* ---------- Idle auto-logout (security) ---------- */
+const IDLE_LIMIT_MS = 15 * 60 * 1000; // sign out after 15 min of no interaction
+const IDLE_WARN_MS = 60 * 1000;       // warn 60s beforehand
+let idleTimer = null, idleWarnTimer = null, lastActivityReset = 0;
+function startIdleWatch() {
+  resetIdle();
+  ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"].forEach((ev) =>
+    document.addEventListener(ev, onActivity, { passive: true }));
+}
+function stopIdleWatch() {
+  clearTimeout(idleTimer); clearTimeout(idleWarnTimer);
+  ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"].forEach((ev) =>
+    document.removeEventListener(ev, onActivity));
+}
+function onActivity() {
+  const now = Date.now();
+  if (now - lastActivityReset > 5000) { lastActivityReset = now; resetIdle(); } // throttle
+}
+function resetIdle() {
+  if (!TOKEN) return;
+  localStorage.setItem("pt_last_activity", String(Date.now()));
+  clearTimeout(idleTimer); clearTimeout(idleWarnTimer);
+  idleWarnTimer = setTimeout(() => toast("You'll be signed out in 1 minute due to inactivity.", "err"), IDLE_LIMIT_MS - IDLE_WARN_MS);
+  idleTimer = setTimeout(() => logout("idle"), IDLE_LIMIT_MS);
 }
 
 function showApp() {
   $("#login").classList.add("hidden");
   $("#app").classList.remove("hidden");
   $("#who-user").textContent = USER;
+  startIdleWatch();
   go("dashboard");
 }
 
@@ -324,10 +360,12 @@ function postEditor(post) {
       ${field("Author", "p-author", post.author || "PeroTech")}
       ${field("Date", "p-date", post.date || today)}
     </div>
+    ${uploadField("Author photo (optional — defaults to your profile photo)", "p-authorav", post.authorAvatar || "")}
     <h3 style="margin:18px 0 6px">Content blocks</h3>
     <div class="help">Build the article from blocks — add text, images, videos, code, files and more in any order.</div>
     <div class="blocks-toolbar" id="bt">${BLOCK_TYPES.map((t) => `<button type="button" class="btn ghost sm" data-add="${t}">+ ${t}</button>`).join("")}</div>
     <div id="blocks">${(post.blocks || [{ type: "paragraph", text: "" }]).map(blockCard).join("")}</div>
+    ${notifyToggle(!isEdit, "post")}
     <div class="form-actions">
       <button class="btn ghost" id="cancel">Cancel</button>
       <button class="btn" id="save">${isEdit ? "Save changes" : "Publish post"}</button>
@@ -354,14 +392,16 @@ function postEditor(post) {
       cover: $("#p-cover").value.trim(),
       readTime: $("#p-read").value.trim(),
       author: $("#p-author").value.trim(),
+      authorAvatar: $("#p-authorav").value.trim(),
       date: $("#p-date").value,
       blocks: collectBlocks(blocks),
+      notify: notifyChecked(),
     };
     if (!payload.title) return toast("Title is required", "err");
     try {
-      if (isEdit) await api("PUT", "/posts/" + encodeURIComponent(post.id), payload);
-      else await api("POST", "/posts", payload);
-      toast("Post saved"); closeModal(); go("posts");
+      if (isEdit) { await api("PUT", "/posts/" + encodeURIComponent(post.id), payload); toast("Post saved"); }
+      else { const r = await api("POST", "/posts", payload); toast(r.emailQueued ? `Published · emailing ${r.emailQueued} subscriber(s) 📣` : "Post published"); }
+      closeModal(); go("posts");
     } catch (e) { toast(e.message, "err"); }
   });
 }
@@ -426,12 +466,17 @@ function productEditor(p) {
     <div class="grid-2">${field("Title", "pr-title", p.title || "")}${field("Subtitle", "pr-sub", p.subtitle || "")}</div>
     ${field("Website URL", "pr-url", p.url || "https://")}
     ${uploadField("Image", "pr-img", p.image || "")}
+    ${notifyToggle(!isEdit, "product")}
     <div class="form-actions"><button class="btn ghost" id="cancel">Cancel</button><button class="btn" id="save">${isEdit ? "Save" : "Create"}</button></div>`);
   $("#cancel").addEventListener("click", closeModal);
   $("#save").addEventListener("click", async () => {
-    const payload = { title: $("#pr-title").value.trim(), subtitle: $("#pr-sub").value.trim(), url: $("#pr-url").value.trim(), image: $("#pr-img").value.trim() };
+    const payload = { title: $("#pr-title").value.trim(), subtitle: $("#pr-sub").value.trim(), url: $("#pr-url").value.trim(), image: $("#pr-img").value.trim(), notify: notifyChecked() };
     if (!payload.title) return toast("Title required", "err");
-    try { if (isEdit) await api("PUT", "/products/" + encodeURIComponent(p.id), payload); else await api("POST", "/products", payload); toast("Saved"); closeModal(); go("products"); } catch (e) { toast(e.message, "err"); }
+    try {
+      if (isEdit) { await api("PUT", "/products/" + encodeURIComponent(p.id), payload); toast("Saved"); }
+      else { const r = await api("POST", "/products", payload); toast(r.emailQueued ? `Created · emailing ${r.emailQueued} subscriber(s) 📣` : "Created"); }
+      closeModal(); go("products");
+    } catch (e) { toast(e.message, "err"); }
   });
 }
 
@@ -460,12 +505,17 @@ function serviceEditor(s) {
     ${field("Subtitle / short description", "sv-sub", s.subtitle || "", true)}
     ${uploadField("Thumbnail image", "sv-img", s.image || "")}
     <div class="grid-2">${field("Link (page or URL)", "sv-url", s.url || "chat.html")}${field("Button text", "sv-cta", s.cta || "Learn more")}</div>
+    ${notifyToggle(!isEdit, "service")}
     <div class="form-actions"><button class="btn ghost" id="cancel">Cancel</button><button class="btn" id="save">${isEdit ? "Save" : "Create"}</button></div>`);
   $("#cancel").addEventListener("click", closeModal);
   $("#save").addEventListener("click", async () => {
-    const payload = { title: $("#sv-title").value.trim(), subtitle: $("#sv-sub").value.trim(), image: $("#sv-img").value.trim(), url: $("#sv-url").value.trim(), cta: $("#sv-cta").value.trim() };
+    const payload = { title: $("#sv-title").value.trim(), subtitle: $("#sv-sub").value.trim(), image: $("#sv-img").value.trim(), url: $("#sv-url").value.trim(), cta: $("#sv-cta").value.trim(), notify: notifyChecked() };
     if (!payload.title) return toast("Title required", "err");
-    try { if (isEdit) await api("PUT", "/services/" + encodeURIComponent(s.id), payload); else await api("POST", "/services", payload); toast("Saved"); closeModal(); go("services"); } catch (e) { toast(e.message, "err"); }
+    try {
+      if (isEdit) { await api("PUT", "/services/" + encodeURIComponent(s.id), payload); toast("Saved"); }
+      else { const r = await api("POST", "/services", payload); toast(r.emailQueued ? `Created · emailing ${r.emailQueued} subscriber(s) 📣` : "Created"); }
+      closeModal(); go("services");
+    } catch (e) { toast(e.message, "err"); }
   });
 }
 
@@ -482,12 +532,27 @@ VIEWS.comments = async () => {
           <td class="muted">${esc(c.postTitle || c.postId)}</td>
           <td class="muted">${fmtDate(c.date)}</td>
           <td><div class="actions">
-            <a class="btn ghost sm" href="/article.html?slug=${encodeURIComponent(c.postId)}#comments" target="_blank">View</a>
+            ${c.byAuthor ? '<span class="pill">Author</span>' : `<button class="btn ghost sm" data-reply="${esc(c.id)}">Reply</button>`}
+            <a class="btn ghost sm" href="/blog/${encodeURIComponent(c.postId)}#comments" target="_blank">View</a>
             <button class="btn danger sm" data-del="${esc(c.id)}">Delete</button>
           </div></td>
         </tr>`).join("")}</tbody></table>` : '<div class="empty">No comments yet.</div>'}
     </div>`;
   $$("[data-del]").forEach((b) => b.addEventListener("click", async () => { if (!confirm("Delete this comment?")) return; await api("DELETE", "/comments/" + encodeURIComponent(b.dataset.del)); toast("Comment deleted"); go("comments"); }));
+  $$("[data-reply]").forEach((b) => b.addEventListener("click", () => {
+    const c = items.find((x) => x.id === b.dataset.reply);
+    openModal("Reply as author", `
+      <div class="help" style="margin-bottom:10px">Replying to <b>${esc(c.name)}</b>: “${esc((c.text || "").slice(0, 140))}”</div>
+      ${field("Your reply", "reply-text", "", true)}
+      <div class="form-actions"><button class="btn ghost" id="cancel">Cancel</button><button class="btn" id="save">Post reply 💬</button></div>`);
+    $("#cancel").addEventListener("click", closeModal);
+    $("#save").addEventListener("click", async () => {
+      const text = $("#reply-text").value.trim();
+      if (!text) return toast("Reply can't be empty", "err");
+      try { await api("POST", "/comments/" + encodeURIComponent(c.id) + "/reply", { text }); toast("Reply posted ✓"); closeModal(); go("comments"); }
+      catch (e) { toast(e.message, "err"); }
+    });
+  }));
 };
 
 /* ---- Chat Leads ---- */
@@ -808,6 +873,14 @@ function field(label, id, val, textarea) {
     ? `<div class="field"><label>${label}</label><textarea class="textarea" id="${id}">${esc(val)}</textarea></div>`
     : `<div class="field"><label>${label}</label><input class="input" id="${id}" value="${esc(val)}" /></div>`;
 }
+// Opt-in checkbox shown only when creating new content — emails an announcement
+// with thumbnail + "Read more" to every newsletter subscriber.
+function notifyToggle(show, what) {
+  if (!show) return "";
+  return `<label class="notify-row"><input type="checkbox" id="notify-subs" checked>
+    <span><b>📣 Email this ${what} to my newsletter subscribers</b><small>A polished announcement with a thumbnail and a “${what === "post" ? "Read more" : "Check it out"}” button goes out when you publish.</small></span></label>`;
+}
+function notifyChecked() { const c = $("#notify-subs"); return !!(c && c.checked); }
 function uploadField(label, id, val, accept) {
   return `<div class="field"><label>${label}</label>
     <div class="upload-row">
@@ -821,7 +894,7 @@ function uploadField(label, id, val, accept) {
 function xhrUpload(file, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", API + "/upload");
+    xhr.open("POST", UPLOAD_ORIGIN + API + "/upload");
     xhr.setRequestHeader("Authorization", "Bearer " + TOKEN);
     xhr.upload.onprogress = (ev) => {
       if (ev.lengthComputable) onProgress(ev.loaded / ev.total, ev.loaded, ev.total);
@@ -885,7 +958,13 @@ document.addEventListener("change", async (e) => {
 
 /* ---------- boot ---------- */
 if (TOKEN) {
-  api("GET", "/me").then((d) => { USER = d.user; showApp(); }).catch(() => logout());
+  // Enforce idle expiry across reloads/tab-reopen before trusting a stored token.
+  const last = Number(localStorage.getItem("pt_last_activity") || 0);
+  if (last && Date.now() - last > IDLE_LIMIT_MS) {
+    logout("idle");
+  } else {
+    api("GET", "/me").then((d) => { USER = d.user; showApp(); }).catch(() => logout());
+  }
 } else {
   $("#login").classList.remove("hidden");
 }
