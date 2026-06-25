@@ -1,8 +1,10 @@
 /* ===== PeroTech Admin ===== */
 const API = "/api/admin";
-// Large uploads (up to ~120MB) bypass Cloudflare's 100MB free-plan cap by going
-// to a DNS-only ("grey cloud") subdomain. Everything else stays on this origin.
-const UPLOAD_ORIGIN =
+// Uploads go to THIS origin by default (works everywhere, no extra setup).
+// Only files larger than Cloudflare's ~100MB cap are routed to a DNS-only
+// ("grey cloud") subdomain — and if that isn't set up, we fall back to origin.
+const BIG_UPLOAD_BYTES = 95 * 1024 * 1024;
+const UPLOAD_SUBDOMAIN =
   (location.hostname === "perotechie.com" || location.hostname === "www.perotechie.com")
     ? "https://upload.perotechie.com"
     : ""; // local/dev: same origin
@@ -891,10 +893,10 @@ function uploadField(label, id, val, accept) {
   </div>`;
 }
 // Upload via XHR so we can show real upload progress (fetch has no progress API).
-function xhrUpload(file, onProgress) {
+function xhrUpload(file, onProgress, origin) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", UPLOAD_ORIGIN + API + "/upload");
+    xhr.open("POST", (origin || "") + API + "/upload");
     xhr.setRequestHeader("Authorization", "Bearer " + TOKEN);
     xhr.upload.onprogress = (ev) => {
       if (ev.lengthComputable) onProgress(ev.loaded / ev.total, ev.loaded, ev.total);
@@ -903,9 +905,9 @@ function xhrUpload(file, onProgress) {
       let data = {};
       try { data = JSON.parse(xhr.responseText || "{}"); } catch (e) {}
       if (xhr.status >= 200 && xhr.status < 300) resolve(data);
-      else reject(new Error(data.error || (xhr.status === 413 ? "File is too large." : "Upload failed")));
+      else reject(new Error(data.error || (xhr.status === 413 ? "File is too large (over the server limit)." : "Upload failed")));
     };
-    xhr.onerror = () => reject(new Error("Network error during upload"));
+    xhr.onerror = () => { const e = new Error("Network error during upload"); e.network = true; reject(e); };
     const fd = new FormData();
     fd.append("file", file);
     xhr.send(fd);
@@ -933,13 +935,23 @@ document.addEventListener("change", async (e) => {
   const pctEl = prev && prev.querySelector(".up-pct");
   const bytesEl = prev && prev.querySelector(".up-bytes");
 
+  const onProg = (frac, loaded, total) => {
+    const pct = Math.round(frac * 100);
+    if (fill) fill.style.width = pct + "%";
+    if (pctEl) pctEl.textContent = pct + "%";
+    if (bytesEl) bytesEl.textContent = humanMB(loaded) + " / " + humanMB(total);
+  };
   try {
-    const data = await xhrUpload(file, (frac, loaded, total) => {
-      const pct = Math.round(frac * 100);
-      if (fill) fill.style.width = pct + "%";
-      if (pctEl) pctEl.textContent = pct + "%";
-      if (bytesEl) bytesEl.textContent = humanMB(loaded) + " / " + humanMB(total);
-    });
+    // Only files over Cloudflare's cap use the upload subdomain; if it isn't
+    // reachable yet, fall back to this origin so normal uploads still work.
+    const big = file.size > BIG_UPLOAD_BYTES;
+    let data;
+    try {
+      data = await xhrUpload(file, onProg, big ? UPLOAD_SUBDOMAIN : "");
+    } catch (err) {
+      if (big && UPLOAD_SUBDOMAIN && err.network) data = await xhrUpload(file, onProg, "");
+      else throw err;
+    }
     const t = document.getElementById(targetId); if (t) t.value = data.path;
     const isImg = /\.(png|jpe?g|gif|webp|svg|avif|bmp)$/i.test(data.path);
     if (prev) prev.innerHTML = isImg
