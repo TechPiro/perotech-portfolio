@@ -30,10 +30,14 @@
     }
   }
 
+  // Accept either a bare ID or a full URL (youtu.be/…, watch?v=…, embed/…, vimeo.com/…).
+  const ytId = (s) => { const m = String(s || "").match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{6,})/); return m ? m[1] : String(s || "").trim(); };
+  const vimeoId = (s) => { const m = String(s || "").match(/vimeo\.com\/(?:video\/)?(\d+)/); return m ? m[1] : String(s || "").trim(); };
+
   function lessonVideoHtml(lesson) {
     const v = lesson.video; if (!v) return "";
-    if (v.kind === "youtube") return `<iframe src="https://www.youtube.com/embed/${esc(v.src)}?rel=0" allow="encrypted-media; fullscreen" allowfullscreen></iframe>`;
-    if (v.kind === "vimeo") return `<iframe src="https://player.vimeo.com/video/${esc(v.src)}" allow="fullscreen" allowfullscreen></iframe>`;
+    if (v.kind === "youtube") return `<iframe src="https://www.youtube.com/embed/${esc(ytId(v.src))}?rel=0" allow="encrypted-media; fullscreen" allowfullscreen></iframe>`;
+    if (v.kind === "vimeo") return `<iframe src="https://player.vimeo.com/video/${esc(vimeoId(v.src))}" allow="fullscreen" allowfullscreen></iframe>`;
     if (v.kind === "mp4") {
       const t = lesson.free ? "" : (PT.token() ? "?t=" + encodeURIComponent(PT.token()) : "");
       return `<video src="/api/lessons/${encodeURIComponent(COURSE.slug)}/${encodeURIComponent(lesson.id)}/video${t}" controls preload="metadata" playsinline></video>`;
