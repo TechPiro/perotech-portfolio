@@ -673,6 +673,9 @@ function courseEditor(c, opts) {
       <label class="notify-row" style="margin:0;align-self:end"><input type="checkbox" id="c-allaccessonly" ${c.allAccessOnly ? "checked" : ""}/> <span><b>All-access only</b><small>Hide its individual price; include it only in the all-access pass.</small></span></label>
     </div>
     <label class="notify-row"><input type="checkbox" id="c-published" ${c.published ? "checked" : ""}/> <span><b>Published</b><small>Show it in the public catalog. Leave unchecked to keep it a draft.</small></span></label>
+    ${field("What students will learn — one point per line (shows in a highlighted box)", "c-outcomes", (c.outcomes || []).join("\n"), true)}
+    ${field("Requirements — one per line (optional)", "c-requirements", (c.requirements || []).join("\n"), true)}
+    ${field("Instructor bio (optional — shown in the Instructor section)", "c-authorbio", c.authorBio || "", true)}
     <h3 style="margin:20px 0 6px">Lessons</h3>
     <div class="help">Each lesson can carry a video (upload an MP4 = protected & streamed securely, or paste a YouTube/Vimeo ID) plus rich content and downloadable files.</div>
     <div id="lessons">${(c.lessons || []).map(lessonCard).join("")}</div>
@@ -709,6 +712,9 @@ function courseEditor(c, opts) {
     badge: $("#c-badge").value,
     allAccessOnly: $("#c-allaccessonly").checked,
     published: $("#c-published").checked,
+    outcomes: $("#c-outcomes").value.split("\n").map((s) => s.trim()).filter(Boolean),
+    requirements: $("#c-requirements").value.split("\n").map((s) => s.trim()).filter(Boolean),
+    authorBio: $("#c-authorbio").value.trim(),
     lessons: collectLessons(lessons),
   });
   $("#save").addEventListener("click", async () => {

@@ -7,6 +7,7 @@
   const naira = (n) => "₦" + Number(n || 0).toLocaleString();
   const attr = (s) => { s = String(s || ""); return /^https?:\/\//i.test(s) ? s : "/" + s.replace(/^\//, ""); };
   PT.renderAuthBar(document.getElementById("learn-authbar"));
+  PT.renderBottomNav("browse");
 
   const slug = decodeURIComponent((location.pathname.match(/\/learn\/([^\/?#]+)/) || [])[1] || new URLSearchParams(location.search).get("slug") || "");
   let COURSE = null, SETTINGS = {}, PAYCFG = {}, selectedId = null, unlocked = false;
@@ -102,7 +103,7 @@
 
   function curriculumRow(l, idx) {
     const playable = l.free || unlocked;
-    const tag = l.free ? '<span class="lr-tag free">Free</span>' : (playable ? "" : '<span class="lr-tag locked">Locked</span>');
+    const tag = l.free ? '<span class="lr-tag free">Preview</span>' : (playable ? "" : '<span class="lr-tag locked">🔒 Locked</span>');
     const ic = l.hasVideo ? (playable ? play : lock) : doc;
     return `<div class="lesson-row ${playable ? "playable" : ""}" data-lid="${esc(l.id)}">
       <div class="lr-ic">${ic}</div>
@@ -111,9 +112,21 @@
     </div>`;
   }
 
+  // Star rating row for the hero (uses the same CSS width trick as the catalog).
+  function starRow() {
+    if (COURSE.rating == null) return "";
+    const r = Math.max(0, Math.min(5, Number(COURSE.rating)));
+    const cnt = COURSE.students != null ? `<span class="cd-scount">(${Number(COURSE.students).toLocaleString()} students)</span>` : "";
+    return `<span class="cd-rate"><b>${r.toFixed(1)}</b><span class="cd-stars" style="--r:${r}">★★★★★</span>${cnt}</span>`;
+  }
+
   function enrollPanel() {
+    const lessons = COURSE.lessons || [];
+    const coverHtml = COURSE.cover
+      ? `<div class="enroll-cover"><img src="${attr(COURSE.cover)}" alt=""/><span class="enroll-cover-play">▶ Preview this course</span></div>`
+      : "";
     if (unlocked) {
-      return `<div class="enroll-card"><div class="enroll-body">
+      return `<div class="enroll-card">${coverHtml}<div class="enroll-body">
         <div class="enroll-price"><span class="owned">✓ You own this</span></div>
         <div class="enroll-note">Full access unlocked. Enjoy the course!</div>
         <button class="enroll-btn primary" id="start-btn">Start learning</button>
@@ -122,17 +135,21 @@
     const aa = SETTINGS.allAccess || {};
     const priceHtml = COURSE.allAccessOnly ? "All-access only" : money(COURSE.price || 0);
     return `<div class="enroll-card">
-      ${COURSE.cover ? `<div class="enroll-cover"><img src="${attr(COURSE.cover)}" alt=""/></div>` : ""}
+      ${coverHtml}
       <div class="enroll-body">
         <div class="enroll-price">${priceHtml}</div>
-        <div class="enroll-note">One-time payment · lifetime access to this course</div>
+        <div class="enroll-note">One-time payment · lifetime access</div>
         ${COURSE.allAccessOnly ? "" : `<button class="enroll-btn primary" id="buy-course">Get this course</button>`}
         ${aa.enabled ? `<button class="enroll-btn crypto" id="buy-all">All-access pass — ${money(aa.price || 0)}${aa.days ? " / " + aa.days + " days" : ""}</button>` : ""}
+        <div class="enroll-incl-title">This course includes:</div>
         <ul class="enroll-list">
-          <li>${(COURSE.lessons || []).length} lessons</li>
-          <li>Video + written guides</li>
-          <li>Pay by card or crypto</li>
+          <li>▶ ${lessons.length} on-demand lesson${lessons.length === 1 ? "" : "s"}</li>
+          <li>📄 Written guides &amp; resources</li>
+          <li>📱 Access on mobile &amp; desktop</li>
+          <li>♾️ Full lifetime access</li>
+          <li>💳 Card, bank transfer or crypto</li>
         </ul>
+        <div class="enroll-guarantee">✓ Instant access after payment</div>
       </div>
     </div>`;
   }
@@ -140,36 +157,87 @@
   function render() {
     if (!COURSE) { root.innerHTML = '<div class="learn-empty">Course not found. <a href="/learn" style="color:#4770ff">Back to courses</a></div>'; return; }
     document.title = "PeroTech — " + COURSE.title;
+    const lessons = COURSE.lessons || [];
+    const outcomes = COURSE.outcomes || [];
+    const reqs = COURSE.requirements || [];
+    const toPlayer = () => { const f = document.getElementById("player-frame"); if (f) f.scrollIntoView({ behavior: "smooth", block: "center" }); };
+
     root.innerHTML = `
-      <a class="cd-back" href="/learn">← All courses</a>
-      <div class="course-detail">
-        <div class="cd-main">
+      <div class="cd-hero">
+        <div class="cd-hero-inner">
+          <a class="cd-crumb" href="/learn">← All courses${COURSE.category ? " · " + esc(COURSE.category) : ""}</a>
           <h1 class="cd-title">${esc(COURSE.title)}</h1>
-          ${COURSE.subtitle ? `<p class="cd-sub">${esc(COURSE.subtitle)}</p>` : ""}
-          <div class="player-frame" id="player-frame"></div>
-          <div id="lesson-body"></div>
-          ${COURSE.description ? `<div class="cd-desc">${esc(COURSE.description)}</div>` : ""}
-          <div class="curriculum">
-            <h3>Course content — ${(COURSE.lessons || []).length} lessons</h3>
-            ${(COURSE.lessons || []).map(curriculumRow).join("")}
+          ${COURSE.subtitle ? `<p class="cd-headline">${esc(COURSE.subtitle)}</p>` : ""}
+          <div class="cd-meta">
+            ${COURSE.badge ? `<span class="cd-badge">${esc(COURSE.badge)}</span>` : ""}
+            ${starRow()}
+          </div>
+          <div class="cd-meta2">
+            ${COURSE.author ? `<span>Created by <b>${esc(COURSE.author)}</b></span>` : ""}
+            ${COURSE.level ? `<span>⌁ ${esc(COURSE.level)}</span>` : ""}
+            <span>▶ ${lessons.length} lesson${lessons.length === 1 ? "" : "s"}</span>
+            ${COURSE.language ? `<span>🌐 ${esc(COURSE.language)}</span>` : ""}
           </div>
         </div>
-        <aside>${enrollPanel()}</aside>
+      </div>
+
+      <div class="cd-body">
+        <div class="cd-main">
+          <div class="player-frame" id="player-frame"></div>
+          <div id="lesson-body"></div>
+
+          ${outcomes.length ? `<section class="cd-block cd-learn">
+            <h2>What you'll learn</h2>
+            <div class="cd-learn-grid">${outcomes.map((o) => `<div class="cd-learn-item"><span class="cdl-tick">✓</span><span>${esc(o)}</span></div>`).join("")}</div>
+          </section>` : ""}
+
+          <section class="cd-block">
+            <h2>Course content</h2>
+            <div class="cd-curr-sub">${lessons.length} lesson${lessons.length === 1 ? "" : "s"} · free previews included</div>
+            <div class="curriculum">${lessons.map(curriculumRow).join("")}</div>
+          </section>
+
+          ${reqs.length ? `<section class="cd-block">
+            <h2>Requirements</h2>
+            <ul class="cd-reqs">${reqs.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
+          </section>` : ""}
+
+          ${COURSE.description ? `<section class="cd-block">
+            <h2>Description</h2>
+            <div class="cd-desc">${esc(COURSE.description)}</div>
+          </section>` : ""}
+
+          ${(COURSE.author || COURSE.authorBio) ? `<section class="cd-block cd-instructor">
+            <h2>Instructor</h2>
+            <div class="cd-inst-head">
+              <div class="cd-inst-av">${esc((COURSE.author || "P").trim()[0].toUpperCase())}</div>
+              <div><div class="cd-inst-name">${esc(COURSE.author || "PeroTech")}</div><div class="cd-inst-role">Instructor</div></div>
+            </div>
+            ${COURSE.authorBio ? `<p class="cd-inst-bio">${esc(COURSE.authorBio)}</p>` : ""}
+          </section>` : ""}
+        </div>
+
+        <aside class="cd-aside">${enrollPanel()}</aside>
       </div>`;
 
     // pick first playable lesson, else first lesson
-    const first = (COURSE.lessons || []).find((l) => l.free || unlocked) || (COURSE.lessons || [])[0];
+    const first = lessons.find((l) => l.free || unlocked) || lessons[0];
     selectedId = first ? first.id : null;
     renderPlayer();
 
     root.querySelectorAll(".lesson-row").forEach((r) => r.addEventListener("click", () => {
-      const l = COURSE.lessons.find((x) => x.id === r.dataset.lid);
-      if (l && (l.free || unlocked)) { selectedId = l.id; renderPlayer(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+      const l = lessons.find((x) => x.id === r.dataset.lid);
+      if (l && (l.free || unlocked)) { selectedId = l.id; renderPlayer(); toPlayer(); }
       else openCheckout("course");
     }));
+    const cover = root.querySelector(".enroll-cover");
+    if (cover) cover.addEventListener("click", () => {
+      const f = lessons.find((l) => l.free || unlocked);
+      if (f) { selectedId = f.id; renderPlayer(); toPlayer(); } else openCheckout("course");
+    });
     const buy = document.getElementById("buy-course"); if (buy) buy.addEventListener("click", () => openCheckout("course"));
     const buyAll = document.getElementById("buy-all"); if (buyAll) buyAll.addEventListener("click", () => openCheckout("all-access"));
-    const start = document.getElementById("start-btn"); if (start) start.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+    const start = document.getElementById("start-btn"); if (start) start.addEventListener("click", toPlayer);
   }
 
   // ---------- checkout ----------

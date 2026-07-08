@@ -88,6 +88,7 @@ const lessonMeta = (l) => ({
   free: !!l.free, hasVideo: !!(l.video && l.video.kind && l.video.kind !== 'none'),
   videoKind: l.video ? l.video.kind : null,
 });
+const toList = (v) => Array.isArray(v) ? v.filter(Boolean) : (typeof v === 'string' ? v.split('\n').map((s) => s.trim()).filter(Boolean) : []);
 const courseCard = (c) => ({
   id: c.id, slug: c.slug || c.id, title: c.title || '', subtitle: c.subtitle || '',
   description: c.description || '', cover: c.cover || '', level: c.level || '',
@@ -96,6 +97,9 @@ const courseCard = (c) => ({
   author: c.author || '', category: c.category || '',
   rating: c.rating != null ? Number(c.rating) : null,
   students: c.students != null ? Number(c.students) : null,
+  // Optional Udemy-style detail fields (all render conditionally).
+  outcomes: toList(c.outcomes), requirements: toList(c.requirements),
+  authorBio: c.authorBio || '', language: c.language || 'English',
 });
 // A lesson with content only when unlocked (entitled) or it's a free preview.
 function detailLesson(l, unlocked) {
