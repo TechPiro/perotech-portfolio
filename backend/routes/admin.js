@@ -21,23 +21,29 @@ function safeEqual(a, b) {
 }
 
 // ---------- File uploads ----------
-const { UPLOAD_DIR } = require('../lib/paths');
+const { UPLOAD_DIR, COURSE_DIR } = require('../lib/paths');
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+fs.mkdirSync(COURSE_DIR, { recursive: true });
+const safeName = (original) => original.toLowerCase().replace(/[^a-z0-9.]+/g, '-').replace(/^-+/, '');
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const safe = file.originalname.toLowerCase().replace(/[^a-z0-9.]+/g, '-').replace(/^-+/, '');
-    cb(null, Date.now() + '-' + safe);
-  },
+  filename: (req, file, cb) => cb(null, Date.now() + '-' + safeName(file.originalname)),
 });
 const MAX_UPLOAD_MB = 125; // allow files up to ~120MB (see Nginx / Cloudflare notes)
 const upload = multer({ storage, limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024 } });
+// Protected course media -> COURSE_DIR (never served statically).
+const courseStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, COURSE_DIR),
+  filename: (req, file, cb) => cb(null, Date.now() + '-' + safeName(file.originalname)),
+});
+const courseUpload = multer({ storage: courseStorage, limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024 } });
 
 const { readJSON, writeJSON } = require('../lib/store');
 const { issue, requireAuth } = require('../lib/auth');
 const { createTransporter, mailFrom, brandAttachments, smtpConfigured } = require('../lib/mailer');
 const { getBroadcastTemplate, renderEmailBlocks, getAnnouncementTemplate } = require('../emailTemplates');
 const { countryName, flagEmoji, suggestionFor } = require('../lib/geo');
+const { sendAccessEmail } = require('../lib/grant');
 
 // Subscribers live in DATA_DIR (persistent) via the shared store.
 const readSubs = () => readJSON('subscribers.json', []);
@@ -162,8 +168,25 @@ router.post('/upload', uploadSingle, (req, res) => {
   });
 });
 
+// Protected upload for paid course media — returns an opaque filename (not a
+// public URL). Delivered later only through the entitlement-checked stream route.
+const courseUploadSingle = (req, res, next) => courseUpload.single('file')(req, res, (err) => {
+  if (err) {
+    const tooBig = err.code === 'LIMIT_FILE_SIZE';
+    return res.status(tooBig ? 413 : 400).json({
+      error: tooBig ? `File is too large. Maximum size is ${MAX_UPLOAD_MB}MB.` : (err.message || 'Upload failed'),
+    });
+  }
+  next();
+});
+router.post('/upload-protected', courseUploadSingle, (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  res.json({ file: req.file.filename, name: req.file.originalname, size: humanSize(req.file.size) });
+});
+
 // ---------- Generic collection CRUD (posts / motion / products) ----------
-const COLLECTIONS = { posts: 'posts.json', motion: 'motion.json', products: 'products.json', services: 'services.json', timeline: 'timeline.json', tools: 'tools.json', videos: 'videos.json' };
+const COLLECTIONS = { posts: 'posts.json', motion: 'motion.json', products: 'products.json', services: 'services.json', timeline: 'timeline.json', tools: 'tools.json', videos: 'videos.json', courses: 'courses.json' };
+const SLUGGED = new Set(['posts', 'courses']); // these expose a public /:slug URL
 
 Object.entries(COLLECTIONS).forEach(([name, file]) => {
   router.get(`/${name}`, (req, res) => res.json(readJSON(file, [])));
@@ -178,7 +201,7 @@ Object.entries(COLLECTIONS).forEach(([name, file]) => {
     let base = id, n = 2;
     while (items.some((i) => i.id === id)) id = base + '-' + n++;
     const item = { ...body, id };
-    if (name === 'posts') item.slug = id;
+    if (SLUGGED.has(name)) item.slug = id;
     items.unshift(item);
     writeJSON(file, items);
 
@@ -200,7 +223,7 @@ Object.entries(COLLECTIONS).forEach(([name, file]) => {
     const idx = items.findIndex((i) => i.id === req.params.id);
     if (idx === -1) return res.status(404).json({ error: 'Not found' });
     const merged = { ...items[idx], ...req.body, id: items[idx].id };
-    if (name === 'posts') merged.slug = items[idx].id;
+    if (SLUGGED.has(name)) merged.slug = items[idx].id;
     items[idx] = merged;
     writeJSON(file, items);
     res.json(merged);
@@ -267,6 +290,50 @@ router.delete('/comments/:id', (req, res) => {
   const next = all.filter((c) => c.id !== req.params.id && c.parentId !== req.params.id);
   writeJSON('comments.json', next);
   res.json({ ok: true, removed: all.length - next.length });
+});
+
+// ---------- Payments & Students ----------
+router.get('/payments', (req, res) => {
+  const titleById = {};
+  readJSON('courses.json', []).forEach((c) => (titleById[c.id] = c.title));
+  const rank = (s) => (s === 'pending' ? 0 : 1);
+  const list = readJSON('purchases.json', []).slice()
+    .sort((a, b) => rank(a.status) - rank(b.status) || (b.createdAt - a.createdAt))
+    .map((p) => ({ ...p, itemTitle: p.type === 'all-access' ? 'All-access pass' : (titleById[p.courseId] || p.courseId || 'Course') }));
+  res.json(list);
+});
+router.post('/payments/:id/approve', async (req, res) => {
+  const purchases = readJSON('purchases.json', []);
+  const p = purchases.find((x) => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: 'Not found' });
+  if (p.status !== 'active') {
+    p.status = 'active';
+    p.approvedAt = Date.now();
+    if (p.type === 'all-access') p.expiresAt = Date.now() + (p.planDays || 30) * 86400000;
+    writeJSON('purchases.json', purchases);
+  }
+  const baseUrl = process.env.PUBLIC_URL || (req.protocol + '://' + req.get('host'));
+  const title = p.type === 'all-access' ? 'All-access pass' : (readJSON('courses.json', []).find((c) => c.id === p.courseId) || {}).title;
+  try { await sendAccessEmail(p.email, title, baseUrl, p.type === 'course' ? '/learn/' + p.courseId : '/learn-dashboard'); }
+  catch (e) { console.error('[approve email]', e.message); }
+  res.json({ ok: true });
+});
+router.post('/payments/:id/reject', (req, res) => {
+  const purchases = readJSON('purchases.json', []);
+  const p = purchases.find((x) => x.id === req.params.id);
+  if (!p) return res.status(404).json({ error: 'Not found' });
+  p.status = 'rejected';
+  writeJSON('purchases.json', purchases);
+  res.json({ ok: true });
+});
+router.get('/students', (req, res) => {
+  const purchases = readJSON('purchases.json', []);
+  const byEmail = {};
+  purchases.forEach((p) => { const e = (p.email || '').toLowerCase(); (byEmail[e] = byEmail[e] || []).push(p); });
+  const list = readJSON('students.json', []).slice()
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+    .map((s) => { const ps = byEmail[(s.email || '').toLowerCase()] || []; return { ...s, purchases: ps.length, active: ps.filter((p) => p.status === 'active').length }; });
+  res.json(list);
 });
 
 // ---------- Chat leads ----------

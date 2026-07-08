@@ -12,6 +12,8 @@ const { readJSON, writeJSON } = require('./lib/store');
 const { initData } = require('./lib/initData');
 const publicRoutes = require('./routes/public');
 const adminRoutes = require('./routes/admin');
+const studentRoutes = require('./routes/student');
+const payRoutes = require('./routes/pay');
 
 // Populate persistent data dir on first run (safe no-op when data already exists).
 initData();
@@ -45,6 +47,8 @@ app.use((req, res, next) => {
 
 // ---------- API ----------
 app.use('/api', publicRoutes);          // content + visit tracking
+app.use('/api', studentRoutes);          // student identity + gated content
+app.use('/api/pay', payRoutes);          // Flutterwave + crypto payments
 app.use('/api/admin', adminRoutes);      // auth-protected admin
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'PeroTech' }));
@@ -167,10 +171,42 @@ app.get(['/article', '/article.html'], (req, res) => {
   res.redirect(301, '/blog');
 });
 
+// Course detail at /learn/:slug with social preview tags injected.
+app.get('/learn/:slug', (req, res, next) => {
+  let html;
+  try { html = fs.readFileSync(path.join(FRONTEND, 'learn-course.html'), 'utf8'); }
+  catch (e) { return next(); }
+  const course = readJSON('courses.json', []).find((c) => (c.slug || c.id) === req.params.slug && c.published);
+  if (course) {
+    const title = escapeHtml(course.title) + ' — PeroTech Learn';
+    const desc = escapeHtml(String(course.subtitle || course.description || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 180));
+    let img = course.cover || 'assets/img/og-image.png';
+    if (!/^https?:/i.test(img)) img = SITE_URL + '/' + img.replace(/^\//, '');
+    const url = SITE_URL + '/learn/' + encodeURIComponent(course.slug || course.id);
+    const tags = [
+      `<title>${title}</title>`,
+      `<meta name="description" content="${desc}" />`,
+      `<link rel="canonical" href="${url}" />`,
+      `<meta property="og:type" content="website" />`,
+      `<meta property="og:site_name" content="PeroTech" />`,
+      `<meta property="og:title" content="${title}" />`,
+      `<meta property="og:description" content="${desc}" />`,
+      `<meta property="og:url" content="${url}" />`,
+      `<meta property="og:image" content="${img}" />`,
+      `<meta name="twitter:card" content="summary_large_image" />`,
+      `<meta name="twitter:title" content="${title}" />`,
+      `<meta name="twitter:description" content="${desc}" />`,
+      `<meta name="twitter:image" content="${img}" />`,
+    ].join('\n    ');
+    html = html.replace(/<title>[\s\S]*?<\/title>\s*/i, '').replace('</head>', '    ' + tags + '\n</head>');
+  }
+  res.type('html').send(html);
+});
+
 // /home -> homepage; *.html -> clean URL
 app.get('/home', (req, res) => res.redirect(301, '/'));
 app.get('/index.html', (req, res) => res.redirect(301, '/'));
-['newsletter', 'products', 'motion', 'blog', 'chat'].forEach((p) =>
+['newsletter', 'products', 'motion', 'blog', 'chat', 'learn'].forEach((p) =>
   app.get('/' + p + '.html', (req, res) => res.redirect(301, '/' + p)));
 
 // ---------- Static files (after API) ----------

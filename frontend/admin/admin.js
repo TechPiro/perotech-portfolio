@@ -15,6 +15,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const fmtDate = (d) => { try { return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }); } catch (e) { return d; } };
+const money = (n) => "$" + Number(n || 0).toLocaleString();
 
 async function api(method, p, body) {
   const res = await fetch(API + p, {
@@ -103,7 +104,7 @@ function showApp() {
 $$(".nav-link[data-view]").forEach((a) =>
   a.addEventListener("click", () => go(a.dataset.view))
 );
-const TITLES = { dashboard: "Dashboard", posts: "Blog Posts", motion: "Motion Projects", products: "Products", services: "Services", timeline: "Timeline", tools: "Favorite Tools", videos: "YouTube Videos", subscribers: "Subscribers", comments: "Comments", leads: "Chat Leads", broadcast: "Bulk Email", settings: "Settings" };
+const TITLES = { dashboard: "Dashboard", posts: "Blog Posts", motion: "Motion Projects", products: "Products", services: "Services", timeline: "Timeline", tools: "Favorite Tools", videos: "YouTube Videos", courses: "Courses", payments: "Payments", students: "Students", subscribers: "Subscribers", comments: "Comments", leads: "Chat Leads", broadcast: "Bulk Email", settings: "Settings" };
 function go(view) {
   $$(".nav-link[data-view]").forEach((a) => a.classList.toggle("active", a.dataset.view === view));
   $("#view-title").textContent = TITLES[view] || view;
@@ -521,6 +522,178 @@ function serviceEditor(s) {
   });
 }
 
+/* ---- Courses (paid training) ---- */
+VIEWS.courses = async () => {
+  const items = await api("GET", "/courses");
+  $("#view").innerHTML = `
+    <div class="panel">
+      <div class="panel-head"><h3>${items.length} course(s)</h3><button class="btn sm" id="new">+ New Course</button></div>
+      ${items.length ? `<table class="table"><thead><tr><th></th><th>Title</th><th>Lessons</th><th>Price</th><th>Status</th><th></th></tr></thead><tbody>
+        ${items.map((c) => `<tr>
+          <td><img class="thumb-sm" src="/${esc(c.cover || "")}" onerror="this.style.visibility='hidden'"/></td>
+          <td><b>${esc(c.title)}</b><div class="muted" style="font-size:.8rem">${esc(c.subtitle || "")}</div></td>
+          <td>${(c.lessons || []).length}</td>
+          <td>${c.allAccessOnly ? '<span class="pill">All-access</span>' : money(c.price || 0)}</td>
+          <td>${c.published ? '<span class="pill">Published</span>' : '<span class="muted">Draft</span>'}</td>
+          <td><div class="actions"><button class="btn ghost sm" data-edit="${esc(c.id)}">Edit</button><button class="btn danger sm" data-del="${esc(c.id)}">Delete</button></div></td>
+        </tr>`).join("")}</tbody></table>` : '<div class="empty">No courses yet. Create your first training course.</div>'}
+    </div>`;
+  $("#new").addEventListener("click", () => courseEditor());
+  $$("[data-edit]").forEach((b) => b.addEventListener("click", () => courseEditor(items.find((c) => c.id === b.dataset.edit))));
+  $$("[data-del]").forEach((b) => b.addEventListener("click", async () => { if (!confirm("Delete this course?")) return; await api("DELETE", "/courses/" + encodeURIComponent(b.dataset.del)); toast("Deleted"); go("courses"); }));
+};
+
+let __lessonUid = 0;
+function lessonCard(ls) {
+  ls = ls || {};
+  const lid = "L" + ++__lessonUid, vid = ls.video || {}, vsrcId = lid + "-vsrc";
+  const kinds = ["none", "mp4", "youtube", "vimeo"];
+  return `<div class="lesson-card" data-lid="${lid}" data-saved-id="${esc(ls.id || "")}">
+    <div class="lesson-head"><span class="bc-type">Lesson</span>
+      <div class="bc-tools"><button type="button" class="icon-btn" data-lmove="up">↑</button><button type="button" class="icon-btn" data-lmove="down">↓</button><button type="button" class="icon-btn" data-lremove>✕</button></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>Lesson title</label><input class="input" data-lfield="title" value="${esc(ls.title || "")}"/></div>
+      <div class="field"><label>Duration (e.g. 8:30)</label><input class="input" data-lfield="duration" value="${esc(ls.duration || "")}"/></div>
+    </div>
+    <div class="field"><label>Summary</label><input class="input" data-lfield="summary" value="${esc(ls.summary || "")}"/></div>
+    <label class="lesson-free"><input type="checkbox" data-lfield="free" ${ls.free ? "checked" : ""}/> <span>Free preview — anyone can watch without paying</span></label>
+    <div class="grid-2">
+      <div class="field"><label>Video type</label><select class="select" data-lfield="kind">${kinds.map((k) => `<option ${vid.kind === k ? "selected" : ""}>${k}</option>`).join("")}</select></div>
+      <div class="field"><label>Video source</label>
+        <div class="upload-row">
+          <input class="input" id="${vsrcId}" data-lfield="src" value="${esc(vid.src || "")}" placeholder="Upload MP4 → or paste YouTube/Vimeo ID"/>
+          <label class="btn ghost sm upload-label">Upload<input type="file" accept="video/*" data-target="${vsrcId}" data-protected="1" style="display:none"></label>
+        </div>
+        <div class="upload-prev" id="${vsrcId}-prev">${vid.src && vid.kind === "mp4" ? `<span class="upload-chip">${esc(vid.src)}</span>` : ""}</div>
+      </div>
+    </div>
+    <div class="lesson-blocks-wrap">
+      <label class="lb-label">Lesson content (text, images, code, downloadable files…)</label>
+      <div class="blocks-toolbar">${BLOCK_TYPES.map((t) => `<button type="button" class="btn ghost sm" data-add-lblock="${t}">+ ${t}</button>`).join("")}</div>
+      <div class="lesson-blocks">${(ls.blocks || []).map(blockCard).join("")}</div>
+    </div>
+  </div>`;
+}
+function collectLessons(container) {
+  return $$(".lesson-card", container).map((card, i) => {
+    const g = (k) => { const el = card.querySelector(`[data-lfield="${k}"]`); return el ? (el.type === "checkbox" ? el.checked : el.value.trim()) : ""; };
+    const kind = g("kind"), src = String(g("src") || "").trim();
+    const lesson = { id: card.dataset.savedId || ("l" + Date.now().toString(36) + i), title: g("title"), summary: g("summary"), duration: g("duration"), free: !!g("free"), blocks: collectBlocks(card.querySelector(".lesson-blocks")) };
+    if (kind && kind !== "none" && src) lesson.video = { kind, src, protected: kind === "mp4" };
+    return lesson;
+  });
+}
+function courseEditor(c) {
+  c = c || {}; const isEdit = !!c.id;
+  const levels = ["Beginner", "Intermediate", "Advanced"];
+  const badges = [["", "None"], ["new", "🆕 New"], ["popular", "🔥 Popular"], ["bestseller", "⭐ Bestseller"]];
+  openModal(isEdit ? "Edit Course" : "New Course", `
+    <div class="grid-2">
+      ${field("Title", "c-title", c.title || "")}
+      ${field("Subtitle", "c-sub", c.subtitle || "")}
+    </div>
+    ${field("Description", "c-desc", c.description || "", true)}
+    ${uploadField("Cover image", "c-cover", c.cover || "")}
+    <div class="grid-2">
+      ${field("Instructor", "c-author", c.author || "PeroTech")}
+      ${field("Category (e.g. Crypto, AI, Motion)", "c-category", c.category || "")}
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>Level</label><select class="select" id="c-level">${levels.map((l) => `<option ${c.level === l ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+      ${field("Price (USD)", "c-price", c.price != null ? c.price : "")}
+    </div>
+    <div class="grid-2">
+      ${field("Rating (0–5, optional)", "c-rating", c.rating != null ? c.rating : "")}
+      ${field("Students enrolled (optional)", "c-students", c.students != null ? c.students : "")}
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>Badge</label><select class="select" id="c-badge">${badges.map(([v, l]) => `<option value="${v}" ${(c.badge || "") === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+      <label class="notify-row" style="margin:0;align-self:end"><input type="checkbox" id="c-allaccessonly" ${c.allAccessOnly ? "checked" : ""}/> <span><b>All-access only</b><small>Hide its individual price; include it only in the all-access pass.</small></span></label>
+    </div>
+    <label class="notify-row"><input type="checkbox" id="c-published" ${c.published ? "checked" : ""}/> <span><b>Published</b><small>Show it in the public catalog. Leave unchecked to keep it a draft.</small></span></label>
+    <h3 style="margin:20px 0 6px">Lessons</h3>
+    <div class="help">Each lesson can carry a video (upload an MP4 = protected & streamed securely, or paste a YouTube/Vimeo ID) plus rich content and downloadable files.</div>
+    <div id="lessons">${(c.lessons || []).map(lessonCard).join("")}</div>
+    <button type="button" class="btn ghost sm" id="add-lesson" style="margin-top:10px">+ Add lesson</button>
+    <div class="form-actions"><button class="btn ghost" id="cancel">Cancel</button><button class="btn" id="save">${isEdit ? "Save changes" : "Create course"}</button></div>`);
+
+  const lessons = $("#lessons");
+  $("#add-lesson").addEventListener("click", () => lessons.insertAdjacentHTML("beforeend", lessonCard({})));
+  lessons.addEventListener("click", (e) => {
+    const lcard = e.target.closest(".lesson-card"); if (!lcard) return;
+    if (e.target.dataset.lremove !== undefined) return void lcard.remove();
+    if (e.target.dataset.lmove === "up" && lcard.previousElementSibling) return void lcard.parentNode.insertBefore(lcard, lcard.previousElementSibling);
+    if (e.target.dataset.lmove === "down" && lcard.nextElementSibling) return void lcard.parentNode.insertBefore(lcard.nextElementSibling, lcard);
+    if (e.target.dataset.addLblock) return void $(".lesson-blocks", lcard).insertAdjacentHTML("beforeend", blockCard({ type: e.target.dataset.addLblock }));
+    const bcard = e.target.closest(".block-card");
+    if (bcard) {
+      if (e.target.dataset.remove !== undefined) bcard.remove();
+      if (e.target.dataset.move === "up" && bcard.previousElementSibling) bcard.parentNode.insertBefore(bcard, bcard.previousElementSibling);
+      if (e.target.dataset.move === "down" && bcard.nextElementSibling) bcard.parentNode.insertBefore(bcard.nextElementSibling, bcard);
+    }
+  });
+  $("#cancel").addEventListener("click", closeModal);
+  $("#save").addEventListener("click", async () => {
+    const payload = {
+      title: $("#c-title").value.trim(),
+      subtitle: $("#c-sub").value.trim(),
+      description: $("#c-desc").value.trim(),
+      cover: $("#c-cover").value.trim(),
+      author: $("#c-author").value.trim(),
+      category: $("#c-category").value.trim(),
+      level: $("#c-level").value,
+      price: parseFloat($("#c-price").value) || 0,
+      rating: $("#c-rating").value ? parseFloat($("#c-rating").value) : null,
+      students: $("#c-students").value ? parseInt($("#c-students").value, 10) : null,
+      badge: $("#c-badge").value,
+      allAccessOnly: $("#c-allaccessonly").checked,
+      published: $("#c-published").checked,
+      lessons: collectLessons(lessons),
+    };
+    if (!payload.title) return toast("Title is required", "err");
+    try {
+      if (isEdit) await api("PUT", "/courses/" + encodeURIComponent(c.id), payload);
+      else await api("POST", "/courses", payload);
+      toast("Course saved"); closeModal(); go("courses");
+    } catch (e) { toast(e.message, "err"); }
+  });
+}
+
+/* ---- Payments ---- */
+VIEWS.payments = async () => {
+  const items = await api("GET", "/payments");
+  const pending = items.filter((p) => p.status === "pending").length;
+  const color = (s) => ({ pending: "#f59e0b", active: "#22c55e", rejected: "#ef4444", expired: "#8a90a0" }[s] || "#8a90a0");
+  $("#view").innerHTML = `
+    <div class="panel">
+      <div class="panel-head"><h3>${items.length} payment(s)${pending ? ` · <span style="color:#f59e0b">${pending} pending review</span>` : ""}</h3></div>
+      ${items.length ? `<table class="table"><thead><tr><th>Student</th><th>Item</th><th>Method</th><th>Amount</th><th>Status</th><th>When</th><th></th></tr></thead><tbody>
+        ${items.map((p) => `<tr>
+          <td><b>${esc(p.email)}</b></td>
+          <td>${esc(p.itemTitle)}</td>
+          <td>${p.method === "crypto" ? `🪙 ${esc(p.coin || "")}` : "💳 Card"}${p.txHash ? `<div class="muted" style="font-size:.7rem;word-break:break-all;max-width:170px">${esc(p.txHash)}</div>` : ""}</td>
+          <td>${money(p.amount || 0)}</td>
+          <td><span class="pill" style="background:${color(p.status)}22;color:${color(p.status)}">${esc(p.status)}</span></td>
+          <td class="muted">${fmtDate(p.createdAt)}</td>
+          <td><div class="actions">${p.status === "pending" ? `<button class="btn sm" data-approve="${esc(p.id)}">Approve</button><button class="btn danger sm" data-reject="${esc(p.id)}">Reject</button>` : ""}</div></td>
+        </tr>`).join("")}</tbody></table>` : '<div class="empty">No payments yet.</div>'}
+    </div>`;
+  $$("[data-approve]").forEach((b) => b.addEventListener("click", async () => { if (!confirm("Approve this payment and grant access? An access email will be sent.")) return; try { await api("POST", "/payments/" + encodeURIComponent(b.dataset.approve) + "/approve"); toast("Approved — access email sent ✓"); go("payments"); } catch (e) { toast(e.message, "err"); } }));
+  $$("[data-reject]").forEach((b) => b.addEventListener("click", async () => { if (!confirm("Reject this payment?")) return; try { await api("POST", "/payments/" + encodeURIComponent(b.dataset.reject) + "/reject"); toast("Rejected"); go("payments"); } catch (e) { toast(e.message, "err"); } }));
+};
+
+/* ---- Students ---- */
+VIEWS.students = async () => {
+  const items = await api("GET", "/students");
+  $("#view").innerHTML = `
+    <div class="panel">
+      <div class="panel-head"><h3>${items.length} student(s)</h3></div>
+      ${items.length ? `<table class="table"><thead><tr><th>Email</th><th>Name</th><th>Access</th><th>Joined</th></tr></thead><tbody>
+        ${items.map((s) => `<tr><td><b>${esc(s.email)}</b></td><td class="muted">${esc(s.name || "—")}</td><td>${s.active} active / ${s.purchases} total</td><td class="muted">${fmtDate(s.createdAt)}</td></tr>`).join("")}</tbody></table>` : '<div class="empty">No students yet.</div>'}
+    </div>`;
+};
+
 /* ---- Comments moderation ---- */
 VIEWS.comments = async () => {
   const items = await api("GET", "/comments");
@@ -746,6 +919,8 @@ VIEWS.broadcast = async () => {
 VIEWS.settings = async () => {
   const s = await api("GET", "/settings");
   const soc = s.socials || {};
+  const cr = s.crypto || {}; const usdt = (typeof cr.usdt === "object" && cr.usdt) ? cr.usdt : { address: cr.usdt || "", network: "" };
+  const aa = s.allAccess || {};
   $("#view").innerHTML = `
     <div class="panel">
       <h3>Profile & social links</h3>
@@ -758,13 +933,35 @@ VIEWS.settings = async () => {
         <div class="grid-2">${field("YouTube URL", "s-yt", soc.youtube || "")}${field("LinkedIn URL", "s-li", soc.linkedin || "")}</div>
         <div class="grid-2">${field("Instagram URL", "s-ig", soc.instagram || "")}${field("Twitter/X URL", "s-tw", soc.twitter || "")}</div>
       </div>
-      <div class="help">Tip: the profile photo file at <b>assets/img/images/profile-large.webp</b> is also used directly by some pages; upload here sets the homepage &amp; email copy.</div>
-      <div class="form-actions"><button class="btn" id="save">Save settings</button></div>
+    </div>
+    <div class="panel">
+      <h3>Crypto wallets (for course checkout)</h3>
+      <div class="help">These addresses are shown to students paying with crypto. They submit a transaction hash, and you approve it under <b>Payments</b>.</div>
+      <div style="margin-top:16px">
+        <div class="grid-2">${field("Bitcoin (BTC) address", "cw-btc", cr.btc || "")}${field("Ethereum (ETH) address", "cw-eth", cr.eth || "")}</div>
+        <div class="grid-2">${field("Solana (SOL) address", "cw-sol", cr.sol || "")}${field("USDT address", "cw-usdt", usdt.address || "")}</div>
+        ${field("USDT network (e.g. TRC20, ERC20)", "cw-usdt-net", usdt.network || "")}
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Pricing &amp; all-access pass</h3>
+      <div class="help">Prices are set in <b>USD</b>. Nigerian buyers are charged in Naira using the rate below (needed for bank transfer); everyone else is charged in USD.</div>
+      <div style="margin-top:16px">
+        ${field("USD → NGN rate (for Nigerian charges)", "s-rate", s.usdToNgn != null ? s.usdToNgn : 1600)}
+        <label class="notify-row"><input type="checkbox" id="aa-enabled" ${aa.enabled ? "checked" : ""}/> <span><b>Enable all-access pass</b><small>Show an all-access option on course pages.</small></span></label>
+        <div class="grid-2">${field("All-access price (USD)", "aa-price", aa.price != null ? aa.price : "")}${field("Duration (days)", "aa-days", aa.days != null ? aa.days : 30)}</div>
+      </div>
+      <div class="form-actions"><button class="btn" id="save">Save all settings</button></div>
     </div>`;
   $("#save").addEventListener("click", async () => {
-    const payload = { name: $("#s-name").value, handle: $("#s-handle").value, tagline: $("#s-tagline").value,
+    const payload = {
+      name: $("#s-name").value, handle: $("#s-handle").value, tagline: $("#s-tagline").value,
       homeHeading: $("#s-heading").value, photo: $("#s-photo").value,
-      socials: { youtube: $("#s-yt").value, linkedin: $("#s-li").value, instagram: $("#s-ig").value, twitter: $("#s-tw").value } };
+      socials: { youtube: $("#s-yt").value, linkedin: $("#s-li").value, instagram: $("#s-ig").value, twitter: $("#s-tw").value },
+      crypto: { btc: $("#cw-btc").value.trim(), eth: $("#cw-eth").value.trim(), sol: $("#cw-sol").value.trim(), usdt: { address: $("#cw-usdt").value.trim(), network: $("#cw-usdt-net").value.trim() } },
+      usdToNgn: parseFloat($("#s-rate").value) || 1600,
+      allAccess: { enabled: $("#aa-enabled").checked, price: parseFloat($("#aa-price").value) || 0, days: parseInt($("#aa-days").value, 10) || 30 },
+    };
     try { await api("PUT", "/settings", payload); toast("Settings saved"); } catch (e) { toast(e.message, "err"); }
   });
 };
@@ -893,10 +1090,10 @@ function uploadField(label, id, val, accept) {
   </div>`;
 }
 // Upload via XHR so we can show real upload progress (fetch has no progress API).
-function xhrUpload(file, onProgress, origin) {
+function xhrUpload(file, onProgress, origin, endpoint) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", (origin || "") + API + "/upload");
+    xhr.open("POST", (origin || "") + API + (endpoint || "/upload"));
     xhr.setRequestHeader("Authorization", "Bearer " + TOKEN);
     xhr.upload.onprogress = (ev) => {
       if (ev.lengthComputable) onProgress(ev.loaded / ev.total, ev.loaded, ev.total);
@@ -942,21 +1139,24 @@ document.addEventListener("change", async (e) => {
     if (bytesEl) bytesEl.textContent = humanMB(loaded) + " / " + humanMB(total);
   };
   try {
-    // Only files over Cloudflare's cap use the upload subdomain; if it isn't
-    // reachable yet, fall back to this origin so normal uploads still work.
+    // Protected (paid course media) goes same-origin to /upload-protected and
+    // returns an opaque filename. Everything else uses /upload; only files over
+    // Cloudflare's cap try the subdomain, falling back to this origin.
+    const protectedUp = !!inp.dataset.protected;
     const big = file.size > BIG_UPLOAD_BYTES;
     let data;
     try {
-      data = await xhrUpload(file, onProg, big ? UPLOAD_SUBDOMAIN : "");
+      data = await xhrUpload(file, onProg, protectedUp ? "" : (big ? UPLOAD_SUBDOMAIN : ""), protectedUp ? "/upload-protected" : "/upload");
     } catch (err) {
-      if (big && UPLOAD_SUBDOMAIN && err.network) data = await xhrUpload(file, onProg, "");
+      if (!protectedUp && big && UPLOAD_SUBDOMAIN && err.network) data = await xhrUpload(file, onProg, "", "/upload");
       else throw err;
     }
-    const t = document.getElementById(targetId); if (t) t.value = data.path;
-    const isImg = /\.(png|jpe?g|gif|webp|svg|avif|bmp)$/i.test(data.path);
+    const value = data.path || data.file; // public path, or protected filename
+    const t = document.getElementById(targetId); if (t) t.value = value;
+    const isImg = /\.(png|jpe?g|gif|webp|svg|avif|bmp)$/i.test(value || "");
     if (prev) prev.innerHTML = isImg
-      ? `<img src="/${data.path}" alt="" onerror="this.style.display='none'"/>`
-      : `<span class="upload-chip">${esc(data.name || data.path)}${data.size ? " · " + esc(data.size) : ""}</span>`;
+      ? `<img src="/${value}" alt="" onerror="this.style.display='none'"/>`
+      : `<span class="upload-chip">${esc(data.name || value)}${data.size ? " · " + esc(data.size) : ""}</span>`;
     // auto-fill linked file name / size fields (for "file" blocks)
     if (inp.dataset.nameTarget) { const n = document.getElementById(inp.dataset.nameTarget); if (n && !n.value) n.value = data.name || ""; }
     if (inp.dataset.sizeTarget) { const z = document.getElementById(inp.dataset.sizeTarget); if (z) z.value = data.size || ""; }

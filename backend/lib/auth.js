@@ -39,9 +39,34 @@ function requireAuth(req, res, next) {
   const h = req.headers.authorization || '';
   const token = h.replace(/^Bearer\s+/i, '');
   const payload = verify(token);
-  if (!payload) return res.status(401).json({ error: 'Unauthorized' });
+  if (!payload || payload.aud) return res.status(401).json({ error: 'Unauthorized' }); // admin tokens carry no aud
   req.admin = payload;
   next();
 }
 
-module.exports = { sign, verify, issue, requireAuth };
+// ---------- Student (passwordless) auth ----------
+// Magic-link token: short-lived, emailed; exchanged for a session token.
+const MAGIC_TTL_MIN = Number(process.env.STUDENT_MAGIC_TTL_MIN) || 20;
+const STUDENT_TTL_DAYS = Number(process.env.STUDENT_TOKEN_TTL_DAYS) || 30;
+
+function issueMagic(email) {
+  return sign({ sub: String(email).toLowerCase(), aud: 'magic', exp: Date.now() + MAGIC_TTL_MIN * 60 * 1000 });
+}
+function issueStudent(email) {
+  return sign({ sub: String(email).toLowerCase(), aud: 'student', exp: Date.now() + STUDENT_TTL_DAYS * 24 * 60 * 60 * 1000 });
+}
+// Verify a token and require a specific audience.
+function verifyAud(token, aud) {
+  const p = verify(token);
+  return p && p.aud === aud ? p : null;
+}
+function requireStudent(req, res, next) {
+  const h = req.headers.authorization || '';
+  const token = h.replace(/^Bearer\s+/i, '');
+  const payload = verifyAud(token, 'student');
+  if (!payload) return res.status(401).json({ error: 'Please sign in to continue.' });
+  req.student = { email: payload.sub };
+  next();
+}
+
+module.exports = { sign, verify, issue, requireAuth, issueMagic, issueStudent, verifyAud, requireStudent };

@@ -21,6 +21,12 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR
   ? path.resolve(process.env.UPLOAD_DIR)
   : path.join(PROJECT_DIR, 'frontend', 'assets', 'uploads');
 
+// Protected course media (paid lesson videos / resources). NEVER served by
+// express.static — delivered only through the entitlement-checked stream route.
+const COURSE_DIR = process.env.COURSE_DIR
+  ? path.resolve(process.env.COURSE_DIR)
+  : path.join(DATA_DIR, 'course-media');
+
 // Committed first-run defaults used to populate DATA_DIR on a fresh server.
 const SEED_DIR = path.join(BACKEND_DIR, 'seed');
 
@@ -28,9 +34,9 @@ const SEED_DIR = path.join(BACKEND_DIR, 'seed');
 const UPLOAD_URL_PATH = '/assets/uploads';
 
 function ensureDirs() {
-  for (const dir of [DATA_DIR, UPLOAD_DIR]) {
+  for (const dir of [DATA_DIR, UPLOAD_DIR, COURSE_DIR]) {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   }
 }
 
-module.exports = { DATA_DIR, UPLOAD_DIR, SEED_DIR, UPLOAD_URL_PATH, BACKEND_DIR, PROJECT_DIR, ensureDirs };
+module.exports = { DATA_DIR, UPLOAD_DIR, COURSE_DIR, SEED_DIR, UPLOAD_URL_PATH, BACKEND_DIR, PROJECT_DIR, ensureDirs };

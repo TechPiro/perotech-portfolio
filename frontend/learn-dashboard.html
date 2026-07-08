@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charSet="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="assets/img/favicon-large.png" type="image/png" />
+    <link rel="stylesheet" href="_next/static/css/6cab9c8daf531c56.css" data-precedence="next" />
+    <link rel="stylesheet" href="_next/static/css/e05db15794235b2c.css" data-precedence="next" />
+    <link rel="stylesheet" href="_next/static/css/b9561bab1231773f.css" data-precedence="next" />
+    <link rel="stylesheet" href="_next/static/css/8b5794fe96c96e12.css" data-precedence="next" />
+    <link rel="stylesheet" href="assets/css/mobile-fixes.css" />
+    <link rel="stylesheet" href="assets/css/icon-fixes.css" />
+    <link rel="stylesheet" href="assets/css/blog.css" />
+    <link rel="stylesheet" href="assets/css/learn.css" />
+    <title>PeroTech — My Courses</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+</head>
+
+<body class="dark-theme">
+    <div>
+        <header class="header-area">
+            <nav class="navbar">
+                <div class="container">
+                    <div class="menu-container">
+                        <div class="logo"><a class="navbar-brand me-0" href="/"><img src="assets/img/logo/logo-text.webp" alt="logo" /></a></div>
+                        <div class="navbar-main d-flex flex-grow-1 ">
+                            <div class="logo inner-logo d-block d-xl-none"><a class="navbar-brand me-0" href="/"><img src="assets/img/logo/logo-text.webp" alt="logo" /></a></div>
+                            <ul class="navbar-info mx-auto d-xl-flex gap-1">
+                                <li class="nav-item"><a class="nav-link" href="/"><img src="assets/img/icons/home.svg" class="svg nav-icon" alt="" /><span>Home</span></a></li>
+                                <li class="nav-item"><a class="nav-link" href="/blog"><img src="assets/img/icons/blog.svg" class="svg nav-icon" alt="" /><span>Blog</span></a></li>
+                                <li class="nav-item"><a class="nav-link active" href="/learn"><img src="assets/img/icons/portfolio.svg" class="svg nav-icon" alt="" /><span>Learn</span></a></li>
+                            </ul>
+                            <div class="header-right-info d-flex align-items-center"><a class="lets-talk-btn" href="/chat">Let&#x27;s chat</a></div>
+                        </div>
+                        <div class="mobile-menu-overlay d-block d-lg-none "></div>
+                        <div class="mobile-menu-control-bar d-block d-xl-none"><button class="mobile-menu-control-bar"><i class="fas fa-bars"></i></button></div>
+                    </div>
+                </div>
+            </nav>
+        </header>
+        <main>
+            <section class="content-box-area mt-4">
+                <div class="learn-wrap">
+                    <div class="learn-authbar" id="learn-authbar"></div>
+                    <div class="learn-head">
+                        <h1>My <span>Courses</span></h1>
+                        <p id="dash-sub">Your enrolled training, ready when you are.</p>
+                    </div>
+                    <div class="course-grid" id="my-grid"><div class="learn-empty">Loading…</div></div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="assets/js/mobile-menu.js"></script>
+    <script src="assets/js/inline-svg.js"></script>
+    <script src="assets/js/student-session.js"></script>
+    <script>
+        (function () {
+            if (!PT.token()) { location.href = "/student-login?next=/learn-dashboard"; return; }
+            PT.renderAuthBar(document.getElementById("learn-authbar"));
+            const grid = document.getElementById("my-grid");
+            const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            const card = (c) => `<a class="course-card" href="/learn/${encodeURIComponent(c.slug || c.id)}">
+                <div class="course-thumb"><img src="/${esc(c.cover)}" alt="${esc(c.title)}" loading="lazy" onerror="this.style.display='none'"/></div>
+                <div class="course-body"><div class="course-title">${esc(c.title)}</div><div class="course-sub">${esc(c.subtitle || "")}</div>
+                <div class="course-meta"><span class="course-price owned" style="color:#22c55e">Owned ✓</span><span class="course-lessons">${c.lessonCount} lessons</span></div></div></a>`;
+            fetch("/api/student/my-courses", { headers: PT.authHeaders() })
+                .then((r) => { if (r.status === 401) { PT.clear(); location.href = "/student-login"; throw new Error("auth"); } return r.json(); })
+                .then((d) => {
+                    if (d.allAccess) document.getElementById("dash-sub").innerHTML = "⭐ <b>All-access pass active</b> — every course is unlocked.";
+                    grid.innerHTML = (d.courses && d.courses.length)
+                        ? d.courses.map(card).join("")
+                        : '<div class="learn-empty">You haven’t enrolled in any courses yet. <a href="/learn" style="color:#4770ff">Browse courses →</a></div>';
+                })
+                .catch((e) => { if (e.message !== "auth") grid.innerHTML = '<div class="learn-empty">Could not load your courses.</div>'; });
+        })();
+    </script>
+</body>
+
+</html>

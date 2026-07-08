@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charSet="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="assets/img/favicon-large.png" type="image/png" />
+    <link rel="stylesheet" href="_next/static/css/6cab9c8daf531c56.css" data-precedence="next" />
+    <link rel="stylesheet" href="_next/static/css/e05db15794235b2c.css" data-precedence="next" />
+    <link rel="stylesheet" href="_next/static/css/b9561bab1231773f.css" data-precedence="next" />
+    <link rel="stylesheet" href="_next/static/css/8b5794fe96c96e12.css" data-precedence="next" />
+    <link rel="stylesheet" href="assets/css/mobile-fixes.css" />
+    <link rel="stylesheet" href="assets/css/icon-fixes.css" />
+    <link rel="stylesheet" href="assets/css/learn.css" />
+    <title>PeroTech — Sign in</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+</head>
+
+<body class="dark-theme">
+    <header class="header-area">
+        <nav class="navbar">
+            <div class="container">
+                <div class="menu-container">
+                    <div class="logo"><a class="navbar-brand me-0" href="/"><img src="assets/img/logo/logo-text.webp" alt="logo" /></a></div>
+                    <div class="header-right-info d-flex align-items-center" style="margin-left:auto"><a class="lets-talk-btn" href="/learn">Browse courses</a></div>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <main>
+        <form class="learn-form" id="login-form">
+            <h1>Sign in to your training 🔑</h1>
+            <p>Enter your email and we'll send you a secure sign-in link — no password needed.</p>
+            <label for="email">Email address</label>
+            <input id="email" type="email" placeholder="you@example.com" autocomplete="email" required />
+            <label for="name">Name (optional)</label>
+            <input id="name" type="text" placeholder="Your name" autocomplete="name" />
+            <button class="btn-primary" id="send" type="submit">Send my sign-in link</button>
+            <div class="msg" id="msg"></div>
+        </form>
+    </main>
+
+    <script src="assets/js/student-session.js"></script>
+    <script>
+        (function () {
+            // already signed in? go to dashboard
+            if (PT.token()) { location.href = "/learn-dashboard"; return; }
+            const form = document.getElementById("login-form");
+            const msg = document.getElementById("msg");
+            const btn = document.getElementById("send");
+            form.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const email = document.getElementById("email").value.trim();
+                const name = document.getElementById("name").value.trim();
+                if (!email) return;
+                btn.disabled = true; btn.textContent = "Sending…"; msg.className = "msg"; msg.textContent = "";
+                try {
+                    const r = await fetch("/api/student/request-link", {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email, name }),
+                    }).then((r) => r.json());
+                    if (r.ok) {
+                        msg.className = "msg ok";
+                        msg.innerHTML = "✓ Check your inbox! We sent a sign-in link to <b>" + email.replace(/</g, "") + "</b>." +
+                            (r.preview ? ' <a href="' + r.preview + '" target="_blank" style="color:#4770ff">(preview)</a>' : "");
+                        form.querySelector("#email").value = "";
+                    } else { msg.className = "msg err"; msg.textContent = r.error || "Could not send the link."; }
+                } catch (err) { msg.className = "msg err"; msg.textContent = "Network error. Please try again."; }
+                finally { btn.disabled = false; btn.textContent = "Send my sign-in link"; }
+            });
+        })();
+    </script>
+</body>
+
+</html>

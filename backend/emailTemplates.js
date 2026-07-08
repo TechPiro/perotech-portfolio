@@ -107,6 +107,52 @@ function getBroadcastTemplate({ heading, bodyHtml, name }) {
   return shell(HEADER + body + FOOTER);
 }
 
+// ---------- Learning platform emails ----------
+function ctaButton(url, label) {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 4px;"><tr>
+    <td style="border-radius:999px;background:#4770ff;"><a href="${url}" style="display:inline-block;padding:13px 30px;color:#ffffff;font-weight:bold;font-size:15px;text-decoration:none;border-radius:999px;">${label}</a></td>
+  </tr></table>`;
+}
+// Passwordless sign-in / access link.
+function getMagicLinkTemplate(link) {
+  const body = `
+    <tr><td style="background:#ffffff;border-radius:14px;padding:30px 28px;color:#3f4754;font-size:16px;line-height:1.65;">
+      <h1 style="margin:0 0 12px;font-size:23px;color:#10151f;">Your sign-in link 🔑</h1>
+      <p style="margin:0 0 18px;">Tap the button below to access your PeroTech training. This link works for a short time and only for you.</p>
+      ${ctaButton(link, 'Sign in to my courses')}
+      <p style="margin:18px 0 0;color:#9aa4b2;font-size:13px;">If the button doesn't work, copy this link:<br><a href="${link}" style="color:#4770ff;word-break:break-all;">${link}</a></p>
+      <p style="margin:14px 0 0;color:#9aa4b2;font-size:13px;">Didn't request this? You can safely ignore it.</p>
+    </td></tr>`;
+  return shell(HEADER + body + FOOTER, 560);
+}
+// Access granted after a successful/approved purchase.
+function getAccessGrantedTemplate({ name, itemTitle, link }) {
+  const greeting = name && name !== 'Anonymous' ? `<p style="margin:0 0 16px;">Hey ${name} 👋</p>` : '';
+  const body = `
+    <tr><td style="background:#ffffff;border-radius:14px;padding:30px 28px;color:#3f4754;font-size:16px;line-height:1.65;">
+      <div style="font-size:32px;line-height:1;margin-bottom:8px;">🎉</div>
+      <h1 style="margin:0 0 12px;font-size:23px;color:#10151f;">You're in${itemTitle ? `: ${itemTitle}` : ''}!</h1>
+      ${greeting}
+      <p style="margin:0 0 18px;">Your payment is confirmed and your access is unlocked. Click below to start learning.</p>
+      ${ctaButton(link, 'Start learning')}
+      <p style="margin:18px 0 0;color:#9aa4b2;font-size:13px;">Bookmark this — you can sign back in any time with your email.</p>
+    </td></tr>`;
+  return shell(HEADER + body + FOOTER);
+}
+// Acknowledge a crypto payment that is awaiting manual confirmation.
+function getCryptoPendingTemplate({ name, itemTitle, coin, txHash }) {
+  const greeting = name && name !== 'Anonymous' ? `<p style="margin:0 0 16px;">Hey ${name} 👋</p>` : '';
+  const body = `
+    <tr><td style="background:#ffffff;border-radius:14px;padding:30px 28px;color:#3f4754;font-size:16px;line-height:1.65;">
+      <h1 style="margin:0 0 12px;font-size:22px;color:#10151f;">We got your payment ⏳</h1>
+      ${greeting}
+      <p style="margin:0 0 14px;">Thanks for your ${coin || 'crypto'} payment${itemTitle ? ` for <b>${itemTitle}</b>` : ''}. We're verifying it on-chain and will unlock your access as soon as it's confirmed (usually shortly).</p>
+      ${txHash ? `<p style="margin:0 0 4px;color:#8a93a3;font-size:13px;">Transaction</p><p style="margin:0 0 14px;font-family:monospace;font-size:13px;color:#1a202c;word-break:break-all;">${txHash}</p>` : ''}
+      <p style="margin:0;color:#9aa4b2;font-size:13px;">You'll get another email the moment your access is live.</p>
+    </td></tr>`;
+  return shell(HEADER + body + FOOTER, 560);
+}
+
 // Announcement email for newly published content (post / product / service).
 // Polished card: kind pill, thumbnail, title, excerpt, "Read more" button, signature.
 // The thumbnail is embedded as an inline CID image so it renders in every inbox.
@@ -240,4 +286,4 @@ function renderEmailBlocks(blocks, opts) {
   return { html, attachments };
 }
 
-module.exports = { getWelcomeTemplate, getNotificationTemplate, getBroadcastTemplate, getAnnouncementTemplate, renderEmailBlocks };
+module.exports = { getWelcomeTemplate, getNotificationTemplate, getBroadcastTemplate, getAnnouncementTemplate, getMagicLinkTemplate, getAccessGrantedTemplate, getCryptoPendingTemplate, renderEmailBlocks };

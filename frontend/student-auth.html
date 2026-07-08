@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charSet="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="assets/img/favicon-large.png" type="image/png" />
+    <link rel="stylesheet" href="_next/static/css/6cab9c8daf531c56.css" data-precedence="next" />
+    <link rel="stylesheet" href="_next/static/css/e05db15794235b2c.css" data-precedence="next" />
+    <link rel="stylesheet" href="_next/static/css/b9561bab1231773f.css" data-precedence="next" />
+    <link rel="stylesheet" href="_next/static/css/8b5794fe96c96e12.css" data-precedence="next" />
+    <link rel="stylesheet" href="assets/css/learn.css" />
+    <title>PeroTech — Signing you in…</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+</head>
+
+<body class="dark-theme">
+    <main>
+        <div class="learn-form" style="text-align:center">
+            <h1 id="title">Signing you in…</h1>
+            <p id="status">One moment while we verify your link.</p>
+            <div class="msg" id="msg"></div>
+            <a id="cta" class="btn-primary" href="/learn" style="display:none;text-decoration:none">Browse courses</a>
+        </div>
+    </main>
+
+    <script src="assets/js/student-session.js"></script>
+    <script>
+        (function () {
+            const params = new URLSearchParams(location.search);
+            const token = params.get("token");
+            const next = params.get("next") || "/learn-dashboard";
+            const title = document.getElementById("title");
+            const status = document.getElementById("status");
+            const cta = document.getElementById("cta");
+            if (!token) { title.textContent = "Invalid link"; status.textContent = "This sign-in link is missing its token."; cta.style.display = "inline-block"; cta.href = "/student-login"; cta.textContent = "Request a new link"; return; }
+            fetch("/api/student/exchange", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token }),
+            }).then((r) => r.json()).then((d) => {
+                if (d && d.token) {
+                    PT.setSession(d.token, d.email, d.name || "");
+                    title.textContent = "You're in! ✓";
+                    status.textContent = "Redirecting…";
+                    setTimeout(() => location.href = next, 700);
+                } else {
+                    title.textContent = "Link expired";
+                    status.textContent = d.error || "This link has expired. Please request a new one.";
+                    cta.style.display = "inline-block"; cta.href = "/student-login"; cta.textContent = "Request a new link";
+                }
+            }).catch(() => {
+                title.textContent = "Something went wrong";
+                status.textContent = "Please try the link again.";
+                cta.style.display = "inline-block"; cta.href = "/student-login"; cta.textContent = "Request a new link";
+            });
+        })();
+    </script>
+</body>
+
+</html>
