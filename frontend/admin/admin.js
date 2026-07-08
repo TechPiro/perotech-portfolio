@@ -164,6 +164,46 @@ function draftBanner(kind, id, fromDraft, reopen) {
   $("#dr-discard").addEventListener("click", () => { clearDraft(kind, id); banner.remove(); });
 }
 
+// List every locally-saved autodraft for a kind ("course" | "post").
+function listDrafts(kind) {
+  const prefix = AUTODRAFT_PREFIX + kind + ":";
+  const out = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || k.indexOf(prefix) !== 0) continue;
+    let rec; try { rec = JSON.parse(localStorage.getItem(k)); } catch (e) { continue; }
+    if (!rec || !rec.data) continue;
+    const id = k.slice(prefix.length);
+    out.push({ key: k, kind, id: id === "new" ? "" : id, isNew: id === "new", t: rec.t || 0, title: (rec.data.title || "").trim(), data: rec.data });
+  }
+  return out.sort((a, b) => b.t - a.t);
+}
+
+// A panel that lists unsaved drafts at the top of a list view.
+function draftsPanelHtml(kind, noun) {
+  const drafts = listDrafts(kind);
+  if (!drafts.length) return "";
+  return `<div class="panel drafts-panel">
+    <div class="panel-head"><h3>📝 Unsaved ${noun} draft${drafts.length === 1 ? "" : "s"} <small class="muted">· saved on this device</small></h3></div>
+    ${drafts.map((d) => `<div class="draft-item">
+      <div class="di-main"><b>${esc(d.title || "Untitled " + noun)}</b> ${d.isNew ? '<span class="pill">new</span>' : '<span class="muted" style="font-size:.78rem">unsaved edits</span>'}
+        <div class="muted" style="font-size:.78rem">Last edited ${timeAgo(d.t)}</div></div>
+      <div class="actions"><button class="btn sm" data-dcont="${esc(d.key)}">Continue editing</button><button class="btn ghost sm" data-ddisc="${esc(d.key)}">Discard</button></div>
+    </div>`).join("")}
+  </div>`;
+}
+
+// Wire Continue/Discard on a drafts panel. reopen(draft) opens the editor prefilled.
+function wireDraftsPanel(kind, reopen, rerender) {
+  const find = (key) => listDrafts(kind).find((d) => d.key === key);
+  $$("[data-dcont]").forEach((b) => b.addEventListener("click", () => { const d = find(b.dataset.dcont); if (d) reopen(d.id ? { id: d.id, ...d.data } : d.data); }));
+  $$("[data-ddisc]").forEach((b) => b.addEventListener("click", () => {
+    if (!confirm("Discard this unsaved draft? This can't be undone.")) return;
+    try { localStorage.removeItem(b.dataset.ddisc); } catch (e) {}
+    rerender();
+  }));
+}
+
 /* =========================================================
    VIEWS
    ========================================================= */
@@ -301,6 +341,7 @@ function timeAgo(ts) {
 VIEWS.posts = async () => {
   const posts = await api("GET", "/posts");
   $("#view").innerHTML = `
+    ${draftsPanelHtml("post", "post")}
     <div class="panel">
       <div class="panel-head"><h3>${posts.length} post(s)</h3><button class="btn sm" id="new-post">+ New Post</button></div>
       ${posts.length ? `<table class="table"><thead><tr><th>Title</th><th>Category</th><th>Date</th><th>Status</th><th></th></tr></thead><tbody>
@@ -323,6 +364,7 @@ VIEWS.posts = async () => {
     await api("DELETE", "/posts/" + encodeURIComponent(b.dataset.del));
     toast("Post deleted"); go("posts");
   }));
+  wireDraftsPanel("post", (data) => postEditor(data, { fromDraft: true }), () => go("posts"));
 };
 
 const BLOCK_TYPES = ["paragraph", "heading", "subheading", "list", "quote", "image", "video", "code", "file"];
@@ -579,6 +621,7 @@ function serviceEditor(s) {
 VIEWS.courses = async () => {
   const items = await api("GET", "/courses");
   $("#view").innerHTML = `
+    ${draftsPanelHtml("course", "course")}
     <div class="panel">
       <div class="panel-head"><h3>${items.length} course(s)</h3><button class="btn sm" id="new">+ New Course</button></div>
       ${items.length ? `<table class="table"><thead><tr><th></th><th>Title</th><th>Lessons</th><th>Price</th><th>Status</th><th></th></tr></thead><tbody>
@@ -594,6 +637,7 @@ VIEWS.courses = async () => {
   $("#new").addEventListener("click", () => courseEditor());
   $$("[data-edit]").forEach((b) => b.addEventListener("click", () => courseEditor(items.find((c) => c.id === b.dataset.edit))));
   $$("[data-del]").forEach((b) => b.addEventListener("click", async () => { if (!confirm("Delete this course?")) return; await api("DELETE", "/courses/" + encodeURIComponent(b.dataset.del)); toast("Deleted"); go("courses"); }));
+  wireDraftsPanel("course", (data) => courseEditor(data, { fromDraft: true }), () => go("courses"));
 };
 
 let __lessonUid = 0;
