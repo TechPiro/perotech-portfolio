@@ -53,9 +53,10 @@
 .lh-btn:hover { background: #3559db; }
 .lh-btn.ghost { background: transparent; border: 1px solid #3a3d4a; }
 .lh-btn.ghost:hover { border-color: var(--bg-accent); }
-.lh-art { position: relative; height: 210px; }
-.lh-badge { position: absolute; background: #14151c; border: 1px solid #2a2c38; color: #e8ebf2; font-weight: 700; font-size: .9rem; padding: 12px 16px; border-radius: 12px; box-shadow: 0 22px 44px -22px rgba(0,0,0,.75); }
-.lh-badge.b1 { top: 8px; right: 44px; } .lh-badge.b2 { top: 84px; right: 0; } .lh-badge.b3 { top: 158px; right: 64px; }
+.lh-art { position: relative; min-height: 240px; display: flex; align-items: center; justify-content: center; }
+.lh-svg { width: 100%; max-width: 480px; height: auto; display: block; }
+.lh-badge { position: absolute; background: rgba(20,21,28,.92); backdrop-filter: blur(6px); border: 1px solid #2a2c38; color: #e8ebf2; font-weight: 700; font-size: .86rem; padding: 10px 15px; border-radius: 12px; box-shadow: 0 22px 44px -22px rgba(0,0,0,.85); }
+.lh-badge.b1 { top: 2px; right: 10px; } .lh-badge.b2 { bottom: 6px; left: 0; }
 @media (max-width: 820px) { .learn-hero { grid-template-columns: 1fr; padding: 28px 22px; } .lh-art { display: none; } }
 
 .course-section { margin: 0 0 42px; }
