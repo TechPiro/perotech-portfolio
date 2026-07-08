@@ -192,6 +192,19 @@ router.post('/upload-protected', courseUploadSingle, (req, res) => {
 const COLLECTIONS = { posts: 'posts.json', motion: 'motion.json', products: 'products.json', services: 'services.json', timeline: 'timeline.json', tools: 'tools.json', videos: 'videos.json', courses: 'courses.json' };
 const SLUGGED = new Set(['posts', 'courses']); // these expose a public /:slug URL
 
+// Announce a published item to subscribers — once, and never for drafts.
+// Mutates item.announcedAt when it fires so later re-saves don't re-send.
+// Returns how many subscribers were queued (0 if it didn't fire).
+function maybeAnnounce(name, item, notify, req) {
+  if (!(ANNOUNCE[name] && notify !== false && smtpConfigured() && item.published !== false && !item.announcedAt)) return 0;
+  const recipients = readSubs();
+  if (!recipients.length) return 0;
+  item.announcedAt = Date.now();
+  const baseUrl = process.env.PUBLIC_URL || (req.protocol + '://' + req.get('host'));
+  notifySubscribers(name, item, baseUrl, recipients).catch((e) => console.error('[notify]', e.message));
+  return recipients.length;
+}
+
 Object.entries(COLLECTIONS).forEach(([name, file]) => {
   router.get(`/${name}`, (req, res) => res.json(readJSON(file, [])));
 
@@ -206,31 +219,27 @@ Object.entries(COLLECTIONS).forEach(([name, file]) => {
     while (items.some((i) => i.id === id)) id = base + '-' + n++;
     const item = { ...body, id };
     if (SLUGGED.has(name)) item.slug = id;
+    // Announce before writing so announcedAt persists. Drafts never send.
+    const emailQueued = maybeAnnounce(name, item, notify, req);
     items.unshift(item);
     writeJSON(file, items);
-
-    // Auto-announce new posts/products/services to subscribers (opt-out via notify:false).
-    let emailQueued = 0;
-    if (ANNOUNCE[name] && notify !== false && smtpConfigured()) {
-      const recipients = readSubs();
-      emailQueued = recipients.length;
-      if (emailQueued) {
-        const baseUrl = process.env.PUBLIC_URL || (req.protocol + '://' + req.get('host'));
-        notifySubscribers(name, item, baseUrl, recipients).catch((e) => console.error('[notify]', e.message));
-      }
-    }
     res.json({ ...item, emailQueued });
   });
 
   router.put(`/${name}/:id`, (req, res) => {
+    const raw = req.body || {};
+    const notify = raw.notify; // control flag — not persisted with the item
+    const body = { ...raw }; delete body.notify;
     const items = readJSON(file, []);
     const idx = items.findIndex((i) => i.id === req.params.id);
     if (idx === -1) return res.status(404).json({ error: 'Not found' });
-    const merged = { ...items[idx], ...req.body, id: items[idx].id };
+    const merged = { ...items[idx], ...body, id: items[idx].id };
     if (SLUGGED.has(name)) merged.slug = items[idx].id;
+    // Fires only the first time an item becomes published (e.g. draft -> live).
+    const emailQueued = maybeAnnounce(name, merged, notify, req);
     items[idx] = merged;
     writeJSON(file, items);
-    res.json(merged);
+    res.json({ ...merged, emailQueued });
   });
 
   router.delete(`/${name}/:id`, (req, res) => {

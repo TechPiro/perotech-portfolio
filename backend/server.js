@@ -156,7 +156,7 @@ app.get('/blog/:slug', (req, res, next) => {
   try { html = fs.readFileSync(path.join(FRONTEND, 'article.html'), 'utf8'); }
   catch (e) { return next(); }
   const posts = readJSON('posts.json', []);
-  const post = posts.find((p) => (p.slug || p.id) === req.params.slug);
+  const post = posts.find((p) => (p.slug || p.id) === req.params.slug && p.published !== false);
   if (post) {
     // remove the file's default <title>, then inject article-specific tags
     html = html.replace(/<title>[\s\S]*?<\/title>\s*/i, '');

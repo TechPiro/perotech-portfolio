@@ -5,10 +5,12 @@ const geoip = require('geoip-lite');
 const { readJSON, writeJSON } = require('../lib/store');
 const { chat } = require('../lib/chatbot');
 
-router.get('/posts', (req, res) => res.json(readJSON('posts.json', [])));
+// Drafts (published === false) are hidden from the public; existing posts with
+// no `published` field are treated as published for backward compatibility.
+router.get('/posts', (req, res) => res.json(readJSON('posts.json', []).filter((p) => p.published !== false)));
 router.get('/posts/:id', (req, res) => {
   const post = readJSON('posts.json', []).find((p) => p.id === req.params.id || p.slug === req.params.id);
-  if (!post) return res.status(404).json({ error: 'Not found' });
+  if (!post || post.published === false) return res.status(404).json({ error: 'Not found' });
   res.json(post);
 });
 router.get('/motion', (req, res) => res.json(readJSON('motion.json', [])));

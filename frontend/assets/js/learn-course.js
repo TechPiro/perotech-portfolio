@@ -34,15 +34,49 @@
   const ytId = (s) => { const m = String(s || "").match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{6,})/); return m ? m[1] : String(s || "").trim(); };
   const vimeoId = (s) => { const m = String(s || "").match(/vimeo\.com\/(?:video\/)?(\d+)/); return m ? m[1] : String(s || "").trim(); };
 
+  // Embed URL loaded on play — tuned to hide as much provider chrome as possible
+  // (nocookie domain, no related videos, modest branding) so the paid player
+  // feels native rather than "a YouTube video".
+  function embedUrl(v) {
+    if (v.kind === "youtube") return `https://www.youtube-nocookie.com/embed/${ytId(v.src)}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&color=white`;
+    if (v.kind === "vimeo") return `https://player.vimeo.com/video/${vimeoId(v.src)}?autoplay=1&title=0&byline=0&portrait=0`;
+    return "";
+  }
+  // Poster shown before play: a custom thumbnail if set, else YouTube's auto image.
+  function posterFor(v) {
+    if (v.poster) return attr(v.poster);
+    if (v.kind === "youtube") return `https://i.ytimg.com/vi/${ytId(v.src)}/maxresdefault.jpg`;
+    return "";
+  }
+  const playSvg = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+
   function lessonVideoHtml(lesson) {
     const v = lesson.video; if (!v) return "";
-    if (v.kind === "youtube") return `<iframe src="https://www.youtube.com/embed/${esc(ytId(v.src))}?rel=0" allow="encrypted-media; fullscreen" allowfullscreen></iframe>`;
-    if (v.kind === "vimeo") return `<iframe src="https://player.vimeo.com/video/${esc(vimeoId(v.src))}" allow="fullscreen" allowfullscreen></iframe>`;
+    // External videos get a slick, Vimeo-style facade (poster + play button).
+    // The provider iframe only loads after the user clicks Play.
+    if (v.kind === "youtube" || v.kind === "vimeo") {
+      const poster = posterFor(v);
+      const fb = v.kind === "youtube" ? `https://i.ytimg.com/vi/${ytId(v.src)}/hqdefault.jpg` : "";
+      return `<div class="video-facade" data-embed="${esc(embedUrl(v))}" role="button" tabindex="0" aria-label="Play ${esc(lesson.title || "video")}">
+        ${poster ? `<img class="vf-poster" src="${esc(poster)}" alt=""${fb ? ` onerror="this.onerror=null;this.src='${fb}'"` : ""}/>` : ""}
+        <span class="vf-play">${playSvg}</span>
+      </div>`;
+    }
     if (v.kind === "mp4") {
       const t = lesson.free ? "" : (PT.token() ? "?t=" + encodeURIComponent(PT.token()) : "");
-      return `<video src="/api/lessons/${encodeURIComponent(COURSE.slug)}/${encodeURIComponent(lesson.id)}/video${t}" controls preload="metadata" playsinline></video>`;
+      const poster = v.poster ? ` poster="${esc(attr(v.poster))}"` : "";
+      return `<video src="/api/lessons/${encodeURIComponent(COURSE.slug)}/${encodeURIComponent(lesson.id)}/video${t}" controls preload="metadata" playsinline${poster}></video>`;
     }
     return "";
+  }
+
+  // Swap the facade for the real player on click / Enter / Space.
+  function wireFacade(frame) {
+    const facade = frame.querySelector(".video-facade");
+    if (!facade) return;
+    const load = () => { frame.innerHTML = `<iframe src="${facade.dataset.embed}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>`; };
+    facade.addEventListener("click", load);
+    facade.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); load(); } });
   }
 
   const isPlayable = (l) => !l.locked && (l.free || unlocked);
@@ -59,6 +93,7 @@
       return;
     }
     frame.innerHTML = lessonVideoHtml(lesson) || '<div class="player-empty">No video for this lesson.</div>';
+    wireFacade(frame);
     body.innerHTML = `<h2 style="color:#fff;margin:18px 0 8px">${esc(lesson.title)}</h2>` +
       (lesson.summary ? `<p style="color:#9aa0ae;margin:0 0 16px">${esc(lesson.summary)}</p>` : "") +
       `<div class="lesson-content">${(lesson.blocks || []).map(renderBlock).join("")}</div>`;

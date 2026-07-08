@@ -261,13 +261,14 @@ VIEWS.posts = async () => {
   $("#view").innerHTML = `
     <div class="panel">
       <div class="panel-head"><h3>${posts.length} post(s)</h3><button class="btn sm" id="new-post">+ New Post</button></div>
-      ${posts.length ? `<table class="table"><thead><tr><th>Title</th><th>Category</th><th>Date</th><th></th></tr></thead><tbody>
+      ${posts.length ? `<table class="table"><thead><tr><th>Title</th><th>Category</th><th>Date</th><th>Status</th><th></th></tr></thead><tbody>
         ${posts.map((p) => `<tr>
           <td><b>${esc(p.title)}</b><div class="muted" style="font-size:.8rem">/${esc(p.slug || p.id)}</div></td>
           <td><span class="pill">${esc(p.category || "—")}</span>${p.badge ? ` <span class="pill ${esc(p.badge)}">${esc(p.badge)}</span>` : ""}</td>
           <td class="muted">${fmtDate(p.date)}</td>
+          <td>${p.published === false ? '<span class="muted">Draft</span>' : '<span class="pill">Published</span>'}</td>
           <td><div class="actions">
-            <a class="btn ghost sm" href="/article.html?slug=${encodeURIComponent(p.slug || p.id)}" target="_blank">View</a>
+            ${p.published === false ? "" : `<a class="btn ghost sm" href="/article.html?slug=${encodeURIComponent(p.slug || p.id)}" target="_blank">View</a>`}
             <button class="btn ghost sm" data-edit="${esc(p.id)}">Edit</button>
             <button class="btn danger sm" data-del="${esc(p.id)}">Delete</button>
           </div></td></tr>`).join("")}
@@ -368,10 +369,11 @@ function postEditor(post) {
     <div class="help">Build the article from blocks — add text, images, videos, code, files and more in any order.</div>
     <div class="blocks-toolbar" id="bt">${BLOCK_TYPES.map((t) => `<button type="button" class="btn ghost sm" data-add="${t}">+ ${t}</button>`).join("")}</div>
     <div id="blocks">${(post.blocks || [{ type: "paragraph", text: "" }]).map(blockCard).join("")}</div>
-    ${notifyToggle(!isEdit, "post")}
+    ${notifyToggle(!post.announcedAt, "post")}
     <div class="form-actions">
       <button class="btn ghost" id="cancel">Cancel</button>
-      <button class="btn" id="save">${isEdit ? "Save changes" : "Publish post"}</button>
+      <button class="btn ghost" id="save-draft">Save as draft</button>
+      <button class="btn" id="save">${isEdit && post.published !== false ? "Save changes" : "Publish post"}</button>
     </div>`);
 
   const blocks = $("#blocks");
@@ -386,7 +388,7 @@ function postEditor(post) {
     if (e.target.dataset.move === "down" && card.nextElementSibling) card.parentNode.insertBefore(card.nextElementSibling, card);
   });
   $("#cancel").addEventListener("click", closeModal);
-  $("#save").addEventListener("click", async () => {
+  const savePost = async (published) => {
     const payload = {
       title: $("#p-title").value.trim(),
       category: $("#p-category").value.trim(),
@@ -398,15 +400,20 @@ function postEditor(post) {
       authorAvatar: $("#p-authorav").value.trim(),
       date: $("#p-date").value,
       blocks: collectBlocks(blocks),
-      notify: notifyChecked(),
+      published,
+      notify: published && notifyChecked(), // only email when actually publishing
     };
     if (!payload.title) return toast("Title is required", "err");
     try {
-      if (isEdit) { await api("PUT", "/posts/" + encodeURIComponent(post.id), payload); toast("Post saved"); }
-      else { const r = await api("POST", "/posts", payload); toast(r.emailQueued ? `Published · emailing ${r.emailQueued} subscriber(s) 📣` : "Post published"); }
+      const r = isEdit
+        ? await api("PUT", "/posts/" + encodeURIComponent(post.id), payload)
+        : await api("POST", "/posts", payload);
+      toast(!published ? "Saved as draft 📝" : (r && r.emailQueued ? `Published · emailing ${r.emailQueued} subscriber(s) 📣` : "Post published ✓"));
       closeModal(); go("posts");
     } catch (e) { toast(e.message, "err"); }
-  });
+  };
+  $("#save-draft").addEventListener("click", () => savePost(false));
+  $("#save").addEventListener("click", () => savePost(true));
 }
 
 /* ---- Motion ---- */
@@ -546,8 +553,9 @@ VIEWS.courses = async () => {
 let __lessonUid = 0;
 function lessonCard(ls) {
   ls = ls || {};
-  const lid = "L" + ++__lessonUid, vid = ls.video || {}, vsrcId = lid + "-vsrc";
+  const lid = "L" + ++__lessonUid, vid = ls.video || {}, vsrcId = lid + "-vsrc", vposterId = lid + "-vposter";
   const kinds = ["none", "mp4", "youtube", "vimeo"];
+  const posterImg = vid.poster ? (/^https?:/i.test(vid.poster) ? esc(vid.poster) : "/" + esc(vid.poster)) : "";
   return `<div class="lesson-card" data-lid="${lid}" data-saved-id="${esc(ls.id || "")}">
     <div class="lesson-head"><span class="bc-type">Lesson</span>
       <div class="bc-tools"><button type="button" class="icon-btn" data-lmove="up">↑</button><button type="button" class="icon-btn" data-lmove="down">↓</button><button type="button" class="icon-btn" data-lremove>✕</button></div>
@@ -568,6 +576,13 @@ function lessonCard(ls) {
         <div class="upload-prev" id="${vsrcId}-prev">${vid.src && vid.kind === "mp4" ? `<span class="upload-chip">${esc(vid.src)}</span>` : ""}</div>
       </div>
     </div>
+    <div class="field"><label>Video thumbnail (optional — a slick cover shown before play; auto-uses the YouTube thumbnail if left blank)</label>
+      <div class="upload-row">
+        <input class="input" id="${vposterId}" data-lfield="poster" value="${esc(vid.poster || "")}" placeholder="Upload an image → or paste an image URL"/>
+        <label class="btn ghost sm upload-label">Upload<input type="file" accept="image/*" data-target="${vposterId}" style="display:none"></label>
+      </div>
+      <div class="upload-prev" id="${vposterId}-prev">${posterImg ? `<img src="${posterImg}" alt="" onerror="this.style.display='none'"/>` : ""}</div>
+    </div>
     <div class="lesson-blocks-wrap">
       <label class="lb-label">Lesson content (text, images, code, downloadable files…)</label>
       <div class="blocks-toolbar">${BLOCK_TYPES.map((t) => `<button type="button" class="btn ghost sm" data-add-lblock="${t}">+ ${t}</button>`).join("")}</div>
@@ -578,9 +593,9 @@ function lessonCard(ls) {
 function collectLessons(container) {
   return $$(".lesson-card", container).map((card, i) => {
     const g = (k) => { const el = card.querySelector(`[data-lfield="${k}"]`); return el ? (el.type === "checkbox" ? el.checked : el.value.trim()) : ""; };
-    const kind = g("kind"), src = String(g("src") || "").trim();
+    const kind = g("kind"), src = String(g("src") || "").trim(), poster = String(g("poster") || "").trim();
     const lesson = { id: card.dataset.savedId || ("l" + Date.now().toString(36) + i), title: g("title"), summary: g("summary"), duration: g("duration"), free: !!g("free"), blocks: collectBlocks(card.querySelector(".lesson-blocks")) };
-    if (kind && kind !== "none" && src) lesson.video = { kind, src, protected: kind === "mp4" };
+    if (kind && kind !== "none" && src) { lesson.video = { kind, src, protected: kind === "mp4" }; if (poster) lesson.video.poster = poster; }
     return lesson;
   });
 }
