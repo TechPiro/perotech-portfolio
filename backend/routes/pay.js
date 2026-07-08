@@ -21,9 +21,12 @@ function allow(ip) {
   arr.push(now); hits.set(ip, arr); return true;
 }
 
-// Detect the buyer's country from their IP (DEV_FORCE_COUNTRY overrides, for
-// local testing only — never set it in production).
-const countryOf = (req) => (process.env.DEV_FORCE_COUNTRY || (geoip.lookup(clientIp(req)) || {}).country || '').toUpperCase();
+// Cloudflare stamps every request with the visitor's country (CF-IPCountry).
+// It's far more reliable than a bundled GeoIP database — especially for Nigerian
+// mobile/ISP and IPv6 ranges — so we trust it first. "XX"/"T1" mean unknown/Tor.
+const cfCountry = (req) => { const c = String(req.headers['cf-ipcountry'] || '').toUpperCase(); return (c.length === 2 && c !== 'XX' && c !== 'T1') ? c : ''; };
+// Detect the buyer's country: DEV override (local only) → Cloudflare → GeoIP.
+const countryOf = (req) => (process.env.DEV_FORCE_COUNTRY || cfCountry(req) || (geoip.lookup(clientIp(req)) || {}).country || '').toUpperCase();
 
 // Rails that are live + the buyer's detected country + NGN rate (for showing an
 // "≈ ₦X" estimate to Nigerian buyers). Prices themselves are always shown in USD.
@@ -31,6 +34,19 @@ const countryOf = (req) => (process.env.DEV_FORCE_COUNTRY || (geoip.lookup(clien
 router.get('/config', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.json({ flutterwave: flutterwave.configured(), country: countryOf(req), ngnRate: usdToNgn() });
+});
+
+// Diagnostic: shows how the server sees the caller's location (no secrets).
+// Handy for confirming Cloudflare geo works: visit /api/pay/whereami.
+router.get('/whereami', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({
+    resolvedCountry: countryOf(req),
+    cfIpCountry: req.headers['cf-ipcountry'] || null,
+    geoipCountry: (geoip.lookup(clientIp(req)) || {}).country || null,
+    ip: clientIp(req),
+    wouldChargeIn: chargeFor(1, countryOf(req)).currency,
+  });
 });
 
 // ---------- Flutterwave (card / bank transfer / USSD, NG + international) ----------
@@ -47,7 +63,7 @@ router.post('/flutterwave/init', async (req, res) => {
     // Buyer country is detected from their IP only (no manual choice). Nigeria
     // pays NGN (unlocks bank transfer); everyone else pays USD.
     const charge = chargeFor(p.amount, countryOf(req)); // { currency, amount }
-    const options = charge.currency === 'NGN' ? 'card, banktransfer, ussd, account' : 'card';
+    const options = charge.currency === 'NGN' ? 'card,banktransfer,ussd,account' : 'card';
     const tx_ref = 'pt-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
     const init = await flutterwave.initPayment({
       amount: charge.amount, currency: charge.currency, tx_ref, email, title: p.title,
