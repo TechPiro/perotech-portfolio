@@ -29,14 +29,18 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => cb(null, Date.now() + '-' + safeName(file.originalname)),
 });
-const MAX_UPLOAD_MB = 125; // allow files up to ~120MB (see Nginx / Cloudflare notes)
+const MAX_UPLOAD_MB = 125; // general uploads (images/blog files) — see Nginx / Cloudflare notes
+// Course videos are large, so protected media gets a much higher ceiling. Files
+// above Cloudflare's ~100MB proxy cap must come in through the DNS-only upload
+// subdomain (or be hosted externally on YouTube/Vimeo). Override with COURSE_MAX_MB.
+const MAX_COURSE_MB = Number(process.env.COURSE_MAX_MB) || 1024; // ~1GB per lesson video
 const upload = multer({ storage, limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024 } });
 // Protected course media -> COURSE_DIR (never served statically).
 const courseStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, COURSE_DIR),
   filename: (req, file, cb) => cb(null, Date.now() + '-' + safeName(file.originalname)),
 });
-const courseUpload = multer({ storage: courseStorage, limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024 } });
+const courseUpload = multer({ storage: courseStorage, limits: { fileSize: MAX_COURSE_MB * 1024 * 1024 } });
 
 const { readJSON, writeJSON } = require('../lib/store');
 const { issue, requireAuth } = require('../lib/auth');
@@ -174,7 +178,7 @@ const courseUploadSingle = (req, res, next) => courseUpload.single('file')(req, 
   if (err) {
     const tooBig = err.code === 'LIMIT_FILE_SIZE';
     return res.status(tooBig ? 413 : 400).json({
-      error: tooBig ? `File is too large. Maximum size is ${MAX_UPLOAD_MB}MB.` : (err.message || 'Upload failed'),
+      error: tooBig ? `File is too large. Maximum size is ${MAX_COURSE_MB}MB.` : (err.message || 'Upload failed'),
     });
   }
   next();

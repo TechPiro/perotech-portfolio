@@ -1139,16 +1139,18 @@ document.addEventListener("change", async (e) => {
     if (bytesEl) bytesEl.textContent = humanMB(loaded) + " / " + humanMB(total);
   };
   try {
-    // Protected (paid course media) goes same-origin to /upload-protected and
-    // returns an opaque filename. Everything else uses /upload; only files over
-    // Cloudflare's cap try the subdomain, falling back to this origin.
+    // Protected (paid course media) goes to /upload-protected and returns an
+    // opaque filename; everything else uses /upload. Either way, files over
+    // Cloudflare's ~100MB cap try the DNS-only subdomain first, falling back to
+    // this origin if the subdomain isn't set up (works up to the ~100MB cap).
     const protectedUp = !!inp.dataset.protected;
+    const endpoint = protectedUp ? "/upload-protected" : "/upload";
     const big = file.size > BIG_UPLOAD_BYTES;
     let data;
     try {
-      data = await xhrUpload(file, onProg, protectedUp ? "" : (big ? UPLOAD_SUBDOMAIN : ""), protectedUp ? "/upload-protected" : "/upload");
+      data = await xhrUpload(file, onProg, big ? UPLOAD_SUBDOMAIN : "", endpoint);
     } catch (err) {
-      if (!protectedUp && big && UPLOAD_SUBDOMAIN && err.network) data = await xhrUpload(file, onProg, "", "/upload");
+      if (big && UPLOAD_SUBDOMAIN && err.network) data = await xhrUpload(file, onProg, "", endpoint);
       else throw err;
     }
     const value = data.path || data.file; // public path, or protected filename
