@@ -287,6 +287,18 @@
 .profile-cta { display: block; text-align: center; width: 100%; padding: 13px; border-radius: 12px; background: var(--bg-accent);
   color: #fff; font-weight: 700; text-decoration: none; margin-bottom: 18px; }
 
+/* Payment result banner (after a failed/cancelled card payment) */
+.pay-alert { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.45); color: #ffd7d7;
+  border-radius: 12px; padding: 13px 16px; margin: 4px 0 18px; font-size: .92rem; line-height: 1.5; }
+.pay-alert.info { background: rgba(71,112,255,.12); border-color: rgba(71,112,255,.45); color: #dfe4f5; }
+.pay-alert b { color: #fff; }
+.pay-alert .pa-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.pay-alert .pa-btn { background: var(--bg-accent); color: #fff; border: none; border-radius: 9px; padding: 8px 16px; font-weight: 700; font-size: .86rem; cursor: pointer; }
+.pay-alert .pa-btn:hover { background: #3559db; }
+.pay-alert .pa-x { background: none; border: none; color: inherit; font-size: 1.3rem; line-height: 1; cursor: pointer; opacity: .7; }
+.pay-alert .pa-x:hover { opacity: 1; }
+
 /* ======================= Udemy-style course detail ======================= */
 .cd-hero { position: relative; background: linear-gradient(160deg, #14161f 0%, #0b0d14 100%);
   border: 1px solid #20222c; border-radius: 18px; padding: 32px 34px 34px; margin-bottom: 24px; }

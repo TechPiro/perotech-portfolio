@@ -413,6 +413,31 @@
   }
   document.getElementById("checkout").addEventListener("click", (e) => { if (e.target.id === "checkout") e.currentTarget.classList.remove("open"); });
 
+  // After returning from a failed/cancelled Flutterwave payment (?pay=failed),
+  // show a friendly banner with alternatives so a card decline isn't a dead end.
+  function showPayStatus() {
+    const pay = new URLSearchParams(location.search).get("pay");
+    if (pay !== "failed" && pay !== "cancelled") return;
+    history.replaceState({}, "", location.pathname); // don't re-show on refresh
+    const isNG = PAYCFG.country === "NG";
+    const alt = isNG
+      ? "try a different card, or pay by <b>bank transfer</b>, <b>USSD</b> or <b>crypto</b>"
+      : "try a different card, or pay with <b>crypto</b>";
+    const msg = pay === "cancelled"
+      ? `Payment cancelled. Whenever you're ready, you can ${alt}.`
+      : `Your card payment didn't go through — your bank may have declined it. Please ${alt}.`;
+    const bar = document.createElement("div");
+    bar.className = "pay-alert" + (pay === "cancelled" ? " info" : "");
+    bar.innerHTML = `<span>${pay === "cancelled" ? "ℹ️" : "⚠️"} ${msg}</span>
+      <span class="pa-actions"><button class="pa-btn" id="pay-retry">Try again</button><button class="pa-x" id="pay-x" aria-label="Dismiss">×</button></span>`;
+    const host = document.querySelector(".learn-wrap") || root;
+    host.insertBefore(bar, host.firstChild);
+    const retry = document.getElementById("pay-retry");
+    if (retry) retry.addEventListener("click", () => { bar.remove(); openCheckout("course"); });
+    const x = document.getElementById("pay-x");
+    if (x) x.addEventListener("click", () => bar.remove());
+  }
+
   // ---------- load ----------
   Promise.all([
     fetch("/api/settings").then((r) => r.json()).catch(() => ({})),
@@ -422,13 +447,13 @@
     SETTINGS = settings || {};
     PAYCFG = paycfg || {};
     COURSE = course;
-    if (!COURSE) return render();
+    if (!COURSE) { render(); showPayStatus(); return; }
     // if signed in, try to load the unlocked version
     if (PT.token()) {
       fetch("/api/student/courses/" + encodeURIComponent(slug), { headers: PT.authHeaders() })
         .then((r) => r.ok ? r.json() : null)
-        .then((full) => { if (full && full.unlocked) { COURSE = full; unlocked = true; } render(); })
-        .catch(() => render());
-    } else render();
+        .then((full) => { if (full && full.unlocked) { COURSE = full; unlocked = true; } render(); showPayStatus(); })
+        .catch(() => { render(); showPayStatus(); });
+    } else { render(); showPayStatus(); }
   });
 })();

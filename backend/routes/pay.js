@@ -68,7 +68,9 @@ router.post('/flutterwave/init', async (req, res) => {
     const init = await flutterwave.initPayment({
       amount: charge.amount, currency: charge.currency, tx_ref, email, title: p.title,
       payment_options: options,
-      redirect_url: baseUrl(req) + '/api/pay/flutterwave/callback',
+      // Carry the course context so a failed/cancelled payment can return the
+      // buyer to the right course page with a helpful message.
+      redirect_url: baseUrl(req) + '/api/pay/flutterwave/callback?ctx=' + encodeURIComponent(type === 'course' ? courseId : ''),
       meta: { type, courseId: type === 'course' ? courseId : null, planDays: p.planDays || null, email, usd: p.amount },
     });
     if (init && init.data && init.data.link) {
@@ -123,7 +125,9 @@ router.post('/flutterwave/webhook', async (req, res) => {
 router.get('/flutterwave/callback', async (req, res) => {
   const id = req.query.transaction_id;
   const status = req.query.status;
-  if (!id || status === 'cancelled') return res.redirect('/learn');
+  // Where to send the buyer if the payment didn't complete (course page if known).
+  const backTo = req.query.ctx ? '/learn/' + encodeURIComponent(req.query.ctx) : '/learn';
+  if (!id || status === 'cancelled') return res.redirect(backTo + '?pay=cancelled');
   try {
     const v = await flutterwave.verifyTransaction(id);
     if (v && v.status === 'success' && v.data && v.data.status === 'successful') {
@@ -133,7 +137,7 @@ router.get('/flutterwave/callback', async (req, res) => {
       return res.redirect(buildAccessLink(baseUrl(req), norm(meta.email || (v.data.customer && v.data.customer.email)), next)); // sign them in
     }
   } catch (e) { console.error('[flutterwave callback]', e.message); }
-  res.redirect('/learn');
+  res.redirect(backTo + '?pay=failed');
 });
 
 // ---------- Crypto (manual) ----------
