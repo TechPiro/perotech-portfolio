@@ -150,8 +150,9 @@
     return `<div class="cmt-av">${esc((c.name || "?").trim().slice(0, 1).toUpperCase())}</div>`;
   }
   function cmtHead(c) {
-    const tag = c.byAuthor ? `<span class="cmt-author-tag">Author</span>${IG_VERIFIED}` : "";
-    return `<div class="cmt-head"><b>${esc(c.name)}</b>${tag}<span>${cmtWhen(c)}</span></div>`;
+    // Verified badge sits immediately after the name, then the Author tag.
+    const tag = c.byAuthor ? `${IG_VERIFIED}<span class="cmt-author-tag">Author</span>` : "";
+    return `<div class="cmt-head"><b>${esc(c.name)}</b>${tag}<span class="cmt-when">${cmtWhen(c)}</span></div>`;
   }
   function replyRow(c) {
     return `<div class="cmt reply${c.byAuthor ? " by-author" : ""}">

@@ -316,9 +316,10 @@
   background: linear-gradient(135deg, var(--bg-accent), #7c4dff);
 }
 .cmt-body { flex: 1; min-width: 0; }
-.cmt-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.cmt-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 4px; }
 .cmt-head b { color: #fff; font-size: 0.96rem; }
 .cmt-head span { color: #7c8395; font-size: 0.8rem; }
+.cmt-head .cmt-when { white-space: nowrap; }
 .cmt-text { color: #c4c9d4; font-size: 0.98rem; line-height: 1.6; white-space: pre-line; word-wrap: break-word; }
 .cmt-empty { color: #7c8395; font-size: 0.92rem; padding: 6px 0; }
 .cmt-av-img { object-fit: cover; background: #1a1d27; }
@@ -373,6 +374,18 @@
   .article-body .bcode pre { padding: 14px 12px; }
   .article-body .bcode code { font-size: 0.82rem; }
   .blog-section-title { font-size: 1.2rem; }
+  /* Comment headers: keep name · badge · Author · date on a tidy line */
+  .cmt { gap: 10px; }
+  .cmt-av { width: 34px; height: 34px; font-size: 0.9rem; }
+  .cmt-head { gap: 3px 6px; }
+  .cmt-head b { font-size: 0.88rem; }
+  .cmt-head .cmt-when { font-size: 0.72rem; }
+  .cmt-head .ig-badge { width: 14px; height: 14px; }
+  .cmt-author-tag { font-size: 0.6rem; padding: 1px 6px; }
+  .cmt-text { font-size: 0.92rem; }
+  .cmt-replies { margin-left: 14px; padding-left: 12px; }
+  .cmt-replies .cmt-av { width: 28px; height: 28px; }
+  .cmt-reply-form { margin-left: 44px; }
 }
 @media (max-width: 575px) {
   .blog-card-body { padding: 14px 15px 18px; }

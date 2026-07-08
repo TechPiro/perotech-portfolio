@@ -47,6 +47,12 @@ button { font-family: inherit; cursor: pointer; }
 .btn.sm { padding: 7px 12px; font-size: 0.82rem; border-radius: 8px; }
 .login-err { color: var(--red); font-size: 0.85rem; margin-top: 12px; min-height: 18px; }
 
+/* Auto-draft "restore unsaved work" banner */
+.draft-restore { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  background: linear-gradient(90deg, rgba(71,112,255,.16), rgba(124,77,255,.12)); border: 1px solid rgba(71,112,255,.4);
+  border-radius: 12px; padding: 12px 14px; margin: 0 0 16px; font-size: .9rem; color: #dfe4f5; }
+.draft-restore .dr-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
 /* ---------- App shell ---------- */
 .app { display: grid; grid-template-columns: 250px 1fr; min-height: 100vh; }
 .sidebar { background: var(--panel); border-right: 1px solid var(--border); padding: 22px 16px;

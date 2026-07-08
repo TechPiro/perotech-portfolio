@@ -122,6 +122,48 @@ function closeModal() { $("#modal").classList.remove("open"); $("#modal-body").i
 $("#modal-close").addEventListener("click", closeModal);
 $("#modal").addEventListener("click", (e) => { if (e.target === $("#modal")) closeModal(); });
 
+/* ---------- Auto-draft recovery (survives idle logout / timeouts) ----------
+   As you edit a course or post, the in-progress form is snapshotted to
+   localStorage. If you get logged out for inactivity (or close the tab) before
+   saving, the next time you open that editor a "Restore" banner appears so you
+   can pick up exactly where you left off instead of starting over. */
+const AUTODRAFT_PREFIX = "pt_autodraft_";
+const draftKey = (kind, id) => AUTODRAFT_PREFIX + kind + ":" + (id || "new");
+function saveDraft(kind, id, data) {
+  try {
+    // Never store an empty draft — avoids nagging with a blank restore banner.
+    if (!data || (!String(data.title || "").trim() && !(data.blocks || []).length && !(data.lessons || []).length)) return;
+    localStorage.setItem(draftKey(kind, id), JSON.stringify({ t: Date.now(), id: id || "", data }));
+  } catch (e) {}
+}
+const loadDraft = (kind, id) => { try { return JSON.parse(localStorage.getItem(draftKey(kind, id)) || "null"); } catch (e) { return null; } };
+const clearDraft = (kind, id) => { try { localStorage.removeItem(draftKey(kind, id)); } catch (e) {} };
+
+// Debounced autosave hooked to every input/change inside the open editor.
+function watchDraft(kind, id, readPayload) {
+  const body = $("#modal-body");
+  let t;
+  const handler = () => { clearTimeout(t); t = setTimeout(() => saveDraft(kind, id, readPayload()), 700); };
+  body.addEventListener("input", handler);
+  body.addEventListener("change", handler);
+}
+
+// Offer to restore a saved draft (unless we just restored one). reopen(data)
+// re-opens the same editor prefilled with the draft's content.
+function draftBanner(kind, id, fromDraft, reopen) {
+  if (fromDraft) return;
+  const d = loadDraft(kind, id);
+  if (!d || !d.data) return;
+  const body = $("#modal-body");
+  const banner = document.createElement("div");
+  banner.className = "draft-restore";
+  banner.innerHTML = `<span>📝 Unsaved draft from <b>${timeAgo(d.t)}</b> — continue where you left off?</span>
+    <span class="dr-actions"><button type="button" class="btn sm" id="dr-restore">Restore</button><button type="button" class="btn ghost sm" id="dr-discard">Discard</button></span>`;
+  body.insertBefore(banner, body.firstChild);
+  $("#dr-restore").addEventListener("click", () => reopen(Object.assign(d.id ? { id: d.id } : {}, d.data)));
+  $("#dr-discard").addEventListener("click", () => { clearDraft(kind, id); banner.remove(); });
+}
+
 /* =========================================================
    VIEWS
    ========================================================= */
@@ -341,8 +383,8 @@ function collectBlocks(container) {
   });
 }
 
-function postEditor(post) {
-  post = post || {};
+function postEditor(post, opts) {
+  post = post || {}; opts = opts || {};
   const isEdit = !!post.id;
   const today = new Date().toISOString().slice(0, 10);
   openModal(isEdit ? "Edit Post" : "New Post", `
@@ -388,32 +430,36 @@ function postEditor(post) {
     if (e.target.dataset.move === "down" && card.nextElementSibling) card.parentNode.insertBefore(card.nextElementSibling, card);
   });
   $("#cancel").addEventListener("click", closeModal);
+  const readFields = () => ({
+    title: $("#p-title").value.trim(),
+    category: $("#p-category").value.trim(),
+    badge: $("#p-badge").value,
+    excerpt: $("#p-excerpt").value.trim(),
+    cover: $("#p-cover").value.trim(),
+    readTime: $("#p-read").value.trim(),
+    author: $("#p-author").value.trim(),
+    authorAvatar: $("#p-authorav").value.trim(),
+    date: $("#p-date").value,
+    blocks: collectBlocks(blocks),
+  });
   const savePost = async (published) => {
-    const payload = {
-      title: $("#p-title").value.trim(),
-      category: $("#p-category").value.trim(),
-      badge: $("#p-badge").value,
-      excerpt: $("#p-excerpt").value.trim(),
-      cover: $("#p-cover").value.trim(),
-      readTime: $("#p-read").value.trim(),
-      author: $("#p-author").value.trim(),
-      authorAvatar: $("#p-authorav").value.trim(),
-      date: $("#p-date").value,
-      blocks: collectBlocks(blocks),
-      published,
-      notify: published && notifyChecked(), // only email when actually publishing
-    };
+    const payload = { ...readFields(), published, notify: published && notifyChecked() };
     if (!payload.title) return toast("Title is required", "err");
     try {
       const r = isEdit
         ? await api("PUT", "/posts/" + encodeURIComponent(post.id), payload)
         : await api("POST", "/posts", payload);
+      clearDraft("post", post.id || "");
       toast(!published ? "Saved as draft 📝" : (r && r.emailQueued ? `Published · emailing ${r.emailQueued} subscriber(s) 📣` : "Post published ✓"));
       closeModal(); go("posts");
     } catch (e) { toast(e.message, "err"); }
   };
   $("#save-draft").addEventListener("click", () => savePost(false));
   $("#save").addEventListener("click", () => savePost(true));
+
+  // Auto-draft recovery: snapshot as you type, offer to restore if you were cut off.
+  watchDraft("post", post.id || "", () => ({ ...readFields(), published: post.published }));
+  draftBanner("post", post.id || "", opts.fromDraft, (data) => postEditor(data, { fromDraft: true }));
 }
 
 /* ---- Motion ---- */
@@ -599,8 +645,8 @@ function collectLessons(container) {
     return lesson;
   });
 }
-function courseEditor(c) {
-  c = c || {}; const isEdit = !!c.id;
+function courseEditor(c, opts) {
+  c = c || {}; opts = opts || {}; const isEdit = !!c.id;
   const levels = ["Beginner", "Intermediate", "Advanced"];
   const badges = [["", "None"], ["new", "🆕 New"], ["popular", "🔥 Popular"], ["bestseller", "⭐ Bestseller"]];
   openModal(isEdit ? "Edit Course" : "New Course", `
@@ -649,30 +695,36 @@ function courseEditor(c) {
     }
   });
   $("#cancel").addEventListener("click", closeModal);
+  const readPayload = () => ({
+    title: $("#c-title").value.trim(),
+    subtitle: $("#c-sub").value.trim(),
+    description: $("#c-desc").value.trim(),
+    cover: $("#c-cover").value.trim(),
+    author: $("#c-author").value.trim(),
+    category: $("#c-category").value.trim(),
+    level: $("#c-level").value,
+    price: parseFloat($("#c-price").value) || 0,
+    rating: $("#c-rating").value ? parseFloat($("#c-rating").value) : null,
+    students: $("#c-students").value ? parseInt($("#c-students").value, 10) : null,
+    badge: $("#c-badge").value,
+    allAccessOnly: $("#c-allaccessonly").checked,
+    published: $("#c-published").checked,
+    lessons: collectLessons(lessons),
+  });
   $("#save").addEventListener("click", async () => {
-    const payload = {
-      title: $("#c-title").value.trim(),
-      subtitle: $("#c-sub").value.trim(),
-      description: $("#c-desc").value.trim(),
-      cover: $("#c-cover").value.trim(),
-      author: $("#c-author").value.trim(),
-      category: $("#c-category").value.trim(),
-      level: $("#c-level").value,
-      price: parseFloat($("#c-price").value) || 0,
-      rating: $("#c-rating").value ? parseFloat($("#c-rating").value) : null,
-      students: $("#c-students").value ? parseInt($("#c-students").value, 10) : null,
-      badge: $("#c-badge").value,
-      allAccessOnly: $("#c-allaccessonly").checked,
-      published: $("#c-published").checked,
-      lessons: collectLessons(lessons),
-    };
+    const payload = readPayload();
     if (!payload.title) return toast("Title is required", "err");
     try {
       if (isEdit) await api("PUT", "/courses/" + encodeURIComponent(c.id), payload);
       else await api("POST", "/courses", payload);
+      clearDraft("course", c.id || "");
       toast("Course saved"); closeModal(); go("courses");
     } catch (e) { toast(e.message, "err"); }
   });
+
+  // Auto-draft recovery: snapshot as you build the course, restore if cut off.
+  watchDraft("course", c.id || "", readPayload);
+  draftBanner("course", c.id || "", opts.fromDraft, (data) => courseEditor(data, { fromDraft: true }));
 }
 
 /* ---- Payments ---- */
