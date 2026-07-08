@@ -15,6 +15,8 @@
   const lock = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
   const play = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
   const doc = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
+  // Authentic Instagram verified seal — shown beside the PeroTech instructor name.
+  const IG_VERIFIED = '<svg class="ig-badge" viewBox="0 0 40 40" width="17" height="17" role="img" aria-label="Verified"><path fill="#3897f0" fill-rule="evenodd" d="M19.998 3.094 14.638 0l-2.972 5.15H5.432v6.354L0 14.64 3.094 20 0 25.359l5.432 3.137v5.905h5.975L14.638 40l5.36-3.094L25.358 40l3.232-5.6h6.162v-6.01L40 25.359 36.905 20 40 14.641l-5.248-3.03v-6.46h-6.419L25.358 0l-5.36 3.094Z"/><polygon fill="#fff" fill-rule="evenodd" points="28.157 12.358 24.072 16.443 17.072 23.443 12.831 19.202 9.992 22.041 17.072 29.121 30.996 15.197"/></svg>';
 
   // ---------- content block renderer ----------
   function renderBlock(b) {
@@ -162,6 +164,25 @@
     const reqs = COURSE.requirements || [];
     const toPlayer = () => { const f = document.getElementById("player-frame"); if (f) f.scrollIntoView({ behavior: "smooth", block: "center" }); };
 
+    // Instructor block: PeroTech shows the brand photo + verified badge (like blog authors).
+    const instructorHtml = (COURSE.author || COURSE.authorBio) ? (function () {
+      const iname = COURSE.author || "PeroTech";
+      const verified = iname.toLowerCase().includes("perotech");
+      const photo = SETTINGS.photo ? attr(SETTINGS.photo) : "";
+      const initial = esc((iname.trim()[0] || "P").toUpperCase());
+      const av = photo
+        ? `<div class="cd-inst-av"><img src="${esc(photo)}" alt="${esc(iname)}" onerror="this.style.display='none'"/></div>`
+        : `<div class="cd-inst-av">${initial}</div>`;
+      return `<section class="cd-block cd-instructor">
+        <h2>Instructor</h2>
+        <div class="cd-inst-head">
+          ${av}
+          <div><div class="cd-inst-name">${esc(iname)}${verified ? IG_VERIFIED : ""}</div><div class="cd-inst-role">Instructor</div></div>
+        </div>
+        ${COURSE.authorBio ? `<p class="cd-inst-bio">${esc(COURSE.authorBio)}</p>` : ""}
+      </section>`;
+    })() : "";
+
     root.innerHTML = `
       <div class="cd-hero">
         <div class="cd-hero-inner">
@@ -207,14 +228,7 @@
             <div class="cd-desc">${esc(COURSE.description)}</div>
           </section>` : ""}
 
-          ${(COURSE.author || COURSE.authorBio) ? `<section class="cd-block cd-instructor">
-            <h2>Instructor</h2>
-            <div class="cd-inst-head">
-              <div class="cd-inst-av">${esc((COURSE.author || "P").trim()[0].toUpperCase())}</div>
-              <div><div class="cd-inst-name">${esc(COURSE.author || "PeroTech")}</div><div class="cd-inst-role">Instructor</div></div>
-            </div>
-            ${COURSE.authorBio ? `<p class="cd-inst-bio">${esc(COURSE.authorBio)}</p>` : ""}
-          </section>` : ""}
+          ${instructorHtml}
         </div>
 
         <aside class="cd-aside">${enrollPanel()}</aside>

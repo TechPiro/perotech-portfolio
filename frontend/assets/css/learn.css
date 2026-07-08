@@ -234,6 +234,8 @@
   .ptn-item.active { color: var(--bg-accent); }
   body.has-bottomnav { padding-bottom: 74px; }
   body.has-bottomnav .chat-button, body.has-bottomnav #chat-launcher { bottom: 86px !important; }
+  /* The bottom nav replaces the top auth bar on mobile for signed-in students. */
+  body.has-bottomnav .learn-authbar { display: none; }
 }
 
 /* ======================= Student dashboard hero ======================= */
@@ -313,9 +315,11 @@
 .cd-reqs { color: #c9cedb; padding-left: 20px; line-height: 1.8; margin: 0; }
 .cd-reqs li { margin-bottom: 4px; }
 .cd-instructor .cd-inst-head { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
-.cd-inst-av { width: 56px; height: 56px; border-radius: 50%; flex: 0 0 auto; display: grid; place-items: center;
+.cd-inst-av { width: 56px; height: 56px; border-radius: 50%; flex: 0 0 auto; display: grid; place-items: center; overflow: hidden;
   font-weight: 800; font-size: 1.4rem; color: #fff; background: linear-gradient(135deg, var(--bg-accent), #7c4dff); }
-.cd-inst-name { color: #fff; font-weight: 700; font-size: 1.05rem; }
+.cd-inst-av img { width: 100%; height: 100%; object-fit: cover; }
+.cd-inst-name { display: inline-flex; align-items: center; gap: 6px; color: #fff; font-weight: 700; font-size: 1.05rem; }
+.cd-inst-name .ig-badge { flex: 0 0 auto; }
 .cd-inst-role { color: #8a90a0; font-size: .85rem; }
 .cd-inst-bio { color: #b6bcc9; line-height: 1.7; white-space: pre-line; margin: 0; }
 
