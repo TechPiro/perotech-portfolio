@@ -5,6 +5,7 @@
   const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const money = (n) => "$" + Number(n || 0).toLocaleString();
   PT.renderAuthBar(document.getElementById("learn-authbar"));
+  PT.renderBottomNav("browse");
 
   const BADGE_LABEL = { hot: "Hot", bestseller: "Bestseller", popular: "Popular", new: "New" };
 

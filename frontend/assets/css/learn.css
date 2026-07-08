@@ -216,3 +216,70 @@
 .ck-check { width: 66px; height: 66px; margin: 8px auto 14px; border-radius: 50%; display: grid; place-items: center; font-size: 32px; font-weight: 800; }
 .ck-check.ok { background: rgba(34,197,94,.15); color: #22c55e; border: 2px solid #22c55e; }
 .ck-check.err { background: rgba(239,68,68,.15); color: #ef4444; border: 2px solid #ef4444; }
+
+/* ======================= Student app: bottom nav ======================= */
+.pt-bottomnav { display: none; }
+@media (max-width: 767px) {
+  .pt-bottomnav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 140;
+    display: flex; justify-content: space-around; align-items: stretch;
+    background: rgba(11,13,20,.97); backdrop-filter: blur(14px);
+    border-top: 1px solid #23252f; box-shadow: 0 -8px 30px rgba(0,0,0,.45);
+    padding: 7px 6px calc(7px + env(safe-area-inset-bottom, 0px));
+  }
+  .ptn-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    text-decoration: none; color: #7c8395; font-size: .68rem; font-weight: 700; padding: 4px 0; transition: color .15s ease; }
+  .ptn-item svg { width: 23px; height: 23px; }
+  .ptn-item.active { color: var(--bg-accent); }
+  body.has-bottomnav { padding-bottom: 74px; }
+  body.has-bottomnav .chat-button, body.has-bottomnav #chat-launcher { bottom: 86px !important; }
+}
+
+/* ======================= Student dashboard hero ======================= */
+.dash-hero {
+  position: relative; overflow: hidden; border-radius: 20px; padding: 26px 28px;
+  background: linear-gradient(135deg, #2a3fb8 0%, #4770ff 45%, #7c4dff 100%);
+  color: #fff; margin: 6px 0 26px; box-shadow: 0 18px 44px rgba(45,63,150,.35);
+}
+.dash-hero::after { content: ""; position: absolute; right: -60px; top: -60px; width: 220px; height: 220px;
+  background: radial-gradient(circle, rgba(255,255,255,.22), rgba(255,255,255,0) 70%); pointer-events: none; }
+.dash-hero .dh-top { display: flex; align-items: center; gap: 14px; position: relative; z-index: 1; }
+.dash-hero .dh-av { width: 56px; height: 56px; border-radius: 50%; flex: 0 0 auto; display: grid; place-items: center;
+  font-weight: 800; font-size: 1.4rem; background: rgba(255,255,255,.2); border: 2px solid rgba(255,255,255,.5); overflow: hidden; }
+.dash-hero .dh-av img { width: 100%; height: 100%; object-fit: cover; }
+.dash-hero .dh-hi { font-size: .82rem; opacity: .85; margin: 0; }
+.dash-hero .dh-name { font-size: 1.5rem; font-weight: 800; margin: 2px 0 0; line-height: 1.15; }
+.dash-stats { display: flex; gap: 12px; margin-top: 22px; position: relative; z-index: 1; flex-wrap: wrap; }
+.dash-stat { flex: 1; min-width: 120px; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.22);
+  border-radius: 14px; padding: 12px 14px; backdrop-filter: blur(4px); }
+.dash-stat .ds-num { font-size: 1.4rem; font-weight: 800; }
+.dash-stat .ds-lbl { font-size: .76rem; opacity: .85; margin-top: 2px; }
+@media (max-width: 575px) {
+  .dash-hero { padding: 22px 20px; border-radius: 16px; }
+  .dash-hero .dh-name { font-size: 1.28rem; }
+  .dash-stat { min-width: 0; }
+  .dash-stat .ds-num { font-size: 1.2rem; }
+}
+
+/* ======================= Student profile page ======================= */
+.profile-wrap { max-width: 720px; margin: 0 auto; }
+.profile-hero { display: flex; align-items: center; gap: 18px; background: #14151c; border: 1px solid #23252f;
+  border-radius: 18px; padding: 22px 24px; margin-bottom: 20px; }
+.profile-av { width: 74px; height: 74px; border-radius: 50%; flex: 0 0 auto; display: grid; place-items: center;
+  font-weight: 800; font-size: 1.9rem; color: #fff; background: linear-gradient(135deg, var(--bg-accent), #7c4dff); overflow: hidden; }
+.profile-av img { width: 100%; height: 100%; object-fit: cover; }
+.profile-id h1 { font-size: 1.4rem; font-weight: 800; color: #fff; margin: 0; }
+.profile-id .pid-email { color: #8a90a0; font-size: .92rem; margin: 4px 0 0; word-break: break-all; }
+.profile-id .pid-badge { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; font-size: .74rem; font-weight: 700;
+  color: #8fa6ff; background: rgba(71,112,255,.14); border: 1px solid rgba(71,112,255,.3); padding: 3px 10px; border-radius: 999px; }
+.profile-section { background: #14151c; border: 1px solid #23252f; border-radius: 16px; padding: 6px 20px; margin-bottom: 18px; }
+.profile-section h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: #7c8395; margin: 16px 0 6px; }
+.p-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 0; border-bottom: 1px solid #20222c; }
+.p-row:last-child { border-bottom: none; }
+.p-row .p-label { color: #9aa0ae; font-size: .9rem; }
+.p-row .p-val { color: #fff; font-weight: 600; font-size: .94rem; text-align: right; word-break: break-word; }
+.p-signout { width: 100%; padding: 13px; border-radius: 12px; border: 1px solid rgba(239,68,68,.4); background: rgba(239,68,68,.1);
+  color: #ff6b6b; font-weight: 700; font-size: .95rem; cursor: pointer; margin-top: 4px; }
+.p-signout:hover { background: rgba(239,68,68,.18); }
+.profile-cta { display: block; text-align: center; width: 100%; padding: 13px; border-radius: 12px; background: var(--bg-accent);
+  color: #fff; font-weight: 700; text-decoration: none; margin-bottom: 18px; }

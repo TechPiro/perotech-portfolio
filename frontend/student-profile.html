@@ -3,6 +3,7 @@
 
 <head>
     <meta charSet="utf-8" />
+    <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="assets/img/favicon-large.png" type="image/png" />
     <link rel="stylesheet" href="_next/static/css/6cab9c8daf531c56.css" data-precedence="next" />
@@ -11,9 +12,8 @@
     <link rel="stylesheet" href="_next/static/css/8b5794fe96c96e12.css" data-precedence="next" />
     <link rel="stylesheet" href="assets/css/mobile-fixes.css" />
     <link rel="stylesheet" href="assets/css/icon-fixes.css" />
-    <link rel="stylesheet" href="assets/css/blog.css" />
     <link rel="stylesheet" href="assets/css/learn.css" />
-    <title>PeroTech — My Courses</title>
+    <title>PeroTech — My Profile</title>
     <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
 </head>
 
@@ -31,7 +31,7 @@
                                 <li class="nav-item"><a class="nav-link" href="/blog"><img src="assets/img/icons/blog.svg" class="svg nav-icon" alt="" /><span>Blog</span></a></li>
                                 <li class="nav-item"><a class="nav-link active" href="/learn"><img src="assets/img/icons/portfolio.svg" class="svg nav-icon" alt="" /><span>Learn</span></a></li>
                             </ul>
-                            <div class="header-right-info d-flex align-items-center"><a class="lets-talk-btn" href="/chat">Let&#x27;s chat</a></div>
+                            <div class="header-right-info d-flex align-items-center"><a class="lets-talk-btn" href="/learn">Browse courses</a></div>
                         </div>
                         <div class="mobile-menu-overlay d-block d-lg-none "></div>
                         <div class="mobile-menu-control-bar d-block d-xl-none"><button class="mobile-menu-control-bar"><i class="fas fa-bars"></i></button></div>
@@ -43,52 +43,67 @@
             <section class="content-box-area mt-4">
                 <div class="learn-wrap">
                     <div class="learn-authbar" id="learn-authbar"></div>
-                    <div id="dash-hero"></div>
-                    <h2 style="color:#fff;font-size:1.15rem;margin:2px 0 14px">My courses</h2>
-                    <div class="course-grid" id="my-grid"><div class="learn-empty">Loading…</div></div>
+                    <div class="profile-wrap" id="profile-root">
+                        <div class="learn-empty">Loading your profile…</div>
+                    </div>
                 </div>
             </section>
         </main>
     </div>
+
     <script src="assets/js/mobile-menu.js"></script>
     <script src="assets/js/inline-svg.js"></script>
     <script src="assets/js/student-session.js"></script>
     <script>
         (function () {
-            if (!PT.token()) { location.href = "/student-login?next=/learn-dashboard"; return; }
+            if (!PT.token()) { location.href = "/student-login?next=/student-profile"; return; }
             PT.renderAuthBar(document.getElementById("learn-authbar"));
-            PT.renderBottomNav("courses");
-            const grid = document.getElementById("my-grid");
+            PT.renderBottomNav("profile");
+
             const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            const root = document.getElementById("profile-root");
             const email = PT.email();
-            const name = PT.name() || (email.split("@")[0] || "there");
-            const hour = new Date().getHours();
-            const greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-            const card = (c) => `<a class="course-card" href="/learn/${encodeURIComponent(c.slug || c.id)}">
-                <div class="course-thumb"><img src="/${esc(c.cover)}" alt="${esc(c.title)}" loading="lazy" onerror="this.style.display='none'"/></div>
-                <div class="course-body"><div class="course-title">${esc(c.title)}</div><div class="course-sub">${esc(c.subtitle || "")}</div>
-                <div class="course-meta"><span class="course-price owned" style="color:#22c55e">Owned ✓</span><span class="course-lessons">${c.lessonCount} lessons</span></div></div></a>`;
-            const hero = (count, allAccess) => `
-                <div class="dash-hero">
-                    <div class="dh-top">
-                        <div class="dh-av">${esc((name.trim()[0] || "S").toUpperCase())}</div>
-                        <div><p class="dh-hi">${greet},</p><p class="dh-name">${esc(name)} 👋</p></div>
+            const name = PT.name() || email.split("@")[0] || "Student";
+            const initial = (name.trim()[0] || "S").toUpperCase();
+
+            const render = (stats) => {
+                const owned = stats ? stats.owned : 0;
+                const access = stats && stats.allAccess ? "All-access pass" : (owned > 0 ? "Per-course access" : "No courses yet");
+                root.innerHTML = `
+                    <div class="profile-hero">
+                        <div class="profile-av">${esc(initial)}</div>
+                        <div class="profile-id">
+                            <h1>${esc(name)}</h1>
+                            <p class="pid-email">${esc(email)}</p>
+                            <span class="pid-badge">🎓 ${esc(access)}</span>
+                        </div>
                     </div>
-                    <div class="dash-stats">
-                        <div class="dash-stat"><div class="ds-num">${count}</div><div class="ds-lbl">Course${count === 1 ? "" : "s"} enrolled</div></div>
-                        <div class="dash-stat"><div class="ds-num">${allAccess ? "★" : (count > 0 ? "✓" : "—")}</div><div class="ds-lbl">${allAccess ? "All-access active" : (count > 0 ? "Active learner" : "Get started")}</div></div>
+
+                    <a class="profile-cta" href="/learn-dashboard">▶ Continue learning</a>
+
+                    <div class="profile-section">
+                        <h3>Learning</h3>
+                        <div class="p-row"><span class="p-label">Courses enrolled</span><span class="p-val">${owned}</span></div>
+                        <div class="p-row"><span class="p-label">Access type</span><span class="p-val">${esc(access)}</span></div>
                     </div>
-                </div>`;
+
+                    <div class="profile-section">
+                        <h3>Account</h3>
+                        <div class="p-row"><span class="p-label">Name</span><span class="p-val">${esc(name)}</span></div>
+                        <div class="p-row"><span class="p-label">Email</span><span class="p-val">${esc(email)}</span></div>
+                        <div class="p-row"><span class="p-label">Sign-in</span><span class="p-val">Passwordless (magic link)</span></div>
+                    </div>
+
+                    <button class="p-signout" id="p-signout">Sign out</button>`;
+
+                document.getElementById("p-signout").addEventListener("click", () => { PT.clear(); location.href = "/learn"; });
+            };
+
+            // Pull live stats (course count + all-access) for the profile.
             fetch("/api/student/my-courses", { headers: PT.authHeaders() })
-                .then((r) => { if (r.status === 401) { PT.clear(); location.href = "/student-login"; throw new Error("auth"); } return r.json(); })
-                .then((d) => {
-                    const list = d.courses || [];
-                    document.getElementById("dash-hero").innerHTML = hero(list.length, !!d.allAccess);
-                    grid.innerHTML = list.length
-                        ? list.map(card).join("")
-                        : '<div class="learn-empty">You haven’t enrolled in any courses yet. <a href="/learn" style="color:#4770ff">Browse courses →</a></div>';
-                })
-                .catch((e) => { if (e.message !== "auth") grid.innerHTML = '<div class="learn-empty">Could not load your courses.</div>'; });
+                .then((r) => { if (r.status === 401) { PT.clear(); location.href = "/student-login?next=/student-profile"; throw new Error("auth"); } return r.json(); })
+                .then((d) => render({ owned: (d.courses || []).length, allAccess: !!d.allAccess }))
+                .catch((e) => { if (e.message !== "auth") render(null); });
         })();
     </script>
 </body>
