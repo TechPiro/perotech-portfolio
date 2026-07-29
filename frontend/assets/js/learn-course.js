@@ -73,11 +73,17 @@
     return "";
   }
 
-  // Swap the facade for the real player on click / Enter / Space.
+  // Swap the facade for the real player on click / Enter / Space. A transparent
+  // shield covers the player's top bar (video title, Share, "Watch on YouTube")
+  // so those can't be clicked through to open the video/channel on YouTube.
   function wireFacade(frame) {
     const facade = frame.querySelector(".video-facade");
     if (!facade) return;
-    const load = () => { frame.innerHTML = `<iframe src="${facade.dataset.embed}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>`; };
+    const load = () => {
+      frame.innerHTML =
+        `<iframe src="${facade.dataset.embed}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>` +
+        `<span class="yt-shield" aria-hidden="true"></span>`;
+    };
     facade.addEventListener("click", load);
     facade.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); load(); } });
   }
