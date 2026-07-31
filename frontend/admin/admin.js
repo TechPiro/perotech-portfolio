@@ -1253,7 +1253,12 @@ function xhrUpload(file, onProgress, origin, endpoint) {
       let data = {};
       try { data = JSON.parse(xhr.responseText || "{}"); } catch (e) {}
       if (xhr.status >= 200 && xhr.status < 300) resolve(data);
-      else reject(new Error(data.error || (xhr.status === 413 ? "File is too large (over the server limit)." : "Upload failed")));
+      else {
+        const e = new Error(data.error || (xhr.status === 413 ? "File is too large (over the server limit)." : "Upload failed"));
+        e.status = xhr.status;
+        if (xhr.status === 413) e.tooBig = true;
+        reject(e);
+      }
     };
     xhr.onerror = () => { const e = new Error("Network error during upload"); e.network = true; reject(e); };
     const fd = new FormData();
@@ -1339,7 +1344,15 @@ document.addEventListener("change", async (e) => {
         catch (e2) { if (UPLOAD_SUBDOMAIN && e2.network) data = await xhrUpload(file, onProg, "", endpoint); else throw e2; }
       }
     } else {
-      data = await xhrUpload(file, onProg, "", endpoint);
+      // Normal-sized file → server. If the server (Nginx/CDN) rejects it as too
+      // large, fall back to Cloudinary so the admin isn't blocked by a low limit.
+      try {
+        data = await xhrUpload(file, onProg, "", endpoint);
+      } catch (err) {
+        if (!err.tooBig) throw err;
+        try { data = await cloudinaryUpload(file, onProg, protectedUp ? "perotech/course" : "perotech"); }
+        catch (e2) { throw (e2.notConfigured ? err : e2); }
+      }
     }
     const value = data.path || data.file; // full URL (Cloudinary), public path, or protected filename
     const t = document.getElementById(targetId); if (t) t.value = value;
