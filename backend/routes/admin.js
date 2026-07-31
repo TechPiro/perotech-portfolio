@@ -44,6 +44,7 @@ const courseUpload = multer({ storage: courseStorage, limits: { fileSize: MAX_CO
 
 const { readJSON, writeJSON } = require('../lib/store');
 const { issue, requireAuth } = require('../lib/auth');
+const cloudinary = require('../lib/cloudinary');
 const { createTransporter, mailFrom, brandAttachments, smtpConfigured } = require('../lib/mailer');
 const { getBroadcastTemplate, renderEmailBlocks, getAnnouncementTemplate } = require('../emailTemplates');
 const { countryName, flagEmoji, suggestionFor } = require('../lib/geo');
@@ -145,6 +146,13 @@ router.use('/upload', (req, res, next) => {
 router.use(requireAuth); // everything below requires a valid token
 
 router.get('/me', (req, res) => res.json({ user: req.admin.user }));
+
+// Sign a direct-to-Cloudinary upload (used by the browser for files too big for
+// the server/CDN path). Returns nothing sensitive beyond a short-lived signature.
+router.get('/cloudinary-sign', (req, res) => {
+  if (!cloudinary.configured()) return res.status(503).json({ error: 'Cloudinary is not configured on the server.' });
+  res.json(cloudinary.signUpload(req.query.folder || 'perotech'));
+});
 
 // Upload an image/file -> returns a site-relative path, original name and human size
 const humanSize = (bytes) => {

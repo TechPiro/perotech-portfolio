@@ -66,9 +66,14 @@
       </div>`;
     }
     if (v.kind === "mp4") {
-      const t = lesson.free ? "" : (PT.token() ? "?t=" + encodeURIComponent(PT.token()) : "");
       const poster = v.poster ? ` poster="${esc(attr(v.poster))}"` : "";
-      return `<video src="/api/lessons/${encodeURIComponent(COURSE.slug)}/${encodeURIComponent(lesson.id)}/video${t}" controls preload="metadata" playsinline${poster}></video>`;
+      // A full URL means the video lives on Cloudinary (big file) — play it directly.
+      // Otherwise stream the protected file through our entitlement-checked route.
+      const isUrl = /^https?:\/\//i.test(v.src || "");
+      const src = isUrl
+        ? esc(v.src)
+        : `/api/lessons/${encodeURIComponent(COURSE.slug)}/${encodeURIComponent(lesson.id)}/video${lesson.free ? "" : (PT.token() ? "?t=" + encodeURIComponent(PT.token()) : "")}`;
+      return `<video src="${src}" controls controlslist="nodownload" preload="metadata" playsinline${poster}></video>`;
     }
     return "";
   }
@@ -107,6 +112,13 @@
       (lesson.summary ? `<p style="color:#9aa0ae;margin:0 0 16px">${esc(lesson.summary)}</p>` : "") +
       `<div class="lesson-content">${(lesson.blocks || []).map(renderBlock).join("")}</div>`;
     document.querySelectorAll(".lesson-row").forEach((r) => r.classList.toggle("active", r.dataset.lid === selectedId));
+  }
+
+  // Downloadable resource row. Locked (no URL) => prompts checkout; unlocked => download link.
+  function resRow(r) {
+    const meta = r.size ? ` · ${esc(r.size)}` : "";
+    if (!r.url) return `<button type="button" class="cd-res locked" data-buy-res><span class="cd-res-ic">🔒</span><span class="cd-res-name">${esc(r.name)}${meta}</span><span class="cd-res-cta">Buy to download</span></button>`;
+    return `<a class="cd-res" href="${esc(attr(r.url))}" target="_blank" rel="noopener" download><span class="cd-res-ic">⬇</span><span class="cd-res-name">${esc(r.name)}${meta}</span><span class="cd-res-cta">Download</span></a>`;
   }
 
   function curriculumRow(l, idx) {
@@ -151,8 +163,8 @@
         ${aa.enabled ? `<button class="enroll-btn crypto" id="buy-all">All-access pass — ${money(aa.price || 0)}${aa.days ? " / " + aa.days + " days" : ""}</button>` : ""}
         <div class="enroll-incl-title">This course includes:</div>
         <ul class="enroll-list">
-          <li>▶ ${lessons.length} on-demand lesson${lessons.length === 1 ? "" : "s"}</li>
-          <li>📄 Written guides &amp; resources</li>
+          ${lessons.length ? `<li>▶ ${lessons.length} on-demand lesson${lessons.length === 1 ? "" : "s"}</li>` : ""}
+          ${(COURSE.resources || []).length ? `<li>📦 ${COURSE.resources.length} downloadable resource${COURSE.resources.length === 1 ? "" : "s"}</li>` : "<li>📄 Written guides &amp; resources</li>"}
           <li>📱 Access on mobile &amp; desktop</li>
           <li>♾️ Full lifetime access</li>
           <li>💳 Card, bank transfer or crypto</li>
@@ -168,6 +180,7 @@
     const lessons = COURSE.lessons || [];
     const outcomes = COURSE.outcomes || [];
     const reqs = COURSE.requirements || [];
+    const resources = COURSE.resources || [];
     const toPlayer = () => { const f = document.getElementById("player-frame"); if (f) f.scrollIntoView({ behavior: "smooth", block: "center" }); };
 
     // Instructor block: PeroTech shows the brand photo + verified badge (like blog authors).
@@ -218,11 +231,17 @@
             <div class="cd-learn-grid">${outcomes.map((o) => `<div class="cd-learn-item"><span class="cdl-tick">✓</span><span>${esc(o)}</span></div>`).join("")}</div>
           </section>` : ""}
 
-          <section class="cd-block">
+          ${lessons.length ? `<section class="cd-block">
             <h2>Course content</h2>
             <div class="cd-curr-sub">${lessons.length} lesson${lessons.length === 1 ? "" : "s"} · free previews included</div>
             <div class="curriculum">${lessons.map(curriculumRow).join("")}</div>
-          </section>
+          </section>` : ""}
+
+          ${resources.length ? `<section class="cd-block">
+            <h2>Course materials${unlocked ? "" : " 🔒"}</h2>
+            ${unlocked ? "" : '<div class="cd-curr-sub">Included with your purchase — buy the course to download.</div>'}
+            <div class="cd-res-list">${resources.map(resRow).join("")}</div>
+          </section>` : ""}
 
           ${reqs.length ? `<section class="cd-block">
             <h2>Requirements</h2>
@@ -255,6 +274,7 @@
       const f = lessons.find((l) => l.free || unlocked);
       if (f) { selectedId = f.id; renderPlayer(); toPlayer(); } else openCheckout("course");
     });
+    root.querySelectorAll("[data-buy-res]").forEach((b) => b.addEventListener("click", () => openCheckout("course")));
     const buy = document.getElementById("buy-course"); if (buy) buy.addEventListener("click", () => openCheckout("course"));
     const buyAll = document.getElementById("buy-all"); if (buyAll) buyAll.addEventListener("click", () => openCheckout("all-access"));
     const start = document.getElementById("start-btn"); if (start) start.addEventListener("click", toPlayer);

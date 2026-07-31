@@ -689,6 +689,32 @@ function collectLessons(container) {
     return lesson;
   });
 }
+
+// ---- Course downloadable resources (files/links, locked until purchase) ----
+let __resUid = 0;
+function resourceCard(r) {
+  r = r || {};
+  const rid = "R" + ++__resUid, urlId = rid + "-url", nameId = rid + "-name", sizeId = rid + "-size";
+  return `<div class="res-card" data-rid="${rid}">
+    <div class="grid-2">
+      <div class="field"><label>Name</label><input class="input" id="${nameId}" data-rfield="name" value="${esc(r.name || "")}" placeholder="e.g. Project source files (.zip)"/></div>
+      <div class="field"><label>Size (optional)</label><input class="input" id="${sizeId}" data-rfield="size" value="${esc(r.size || "")}" placeholder="auto-filled on upload"/></div>
+    </div>
+    <div class="field"><label>File or link</label>
+      <div class="upload-row">
+        <input class="input" id="${urlId}" data-rfield="url" value="${esc(r.url || "")}" placeholder="Upload a file → or paste a URL"/>
+        <label class="btn ghost sm upload-label">Upload<input type="file" accept="*/*" data-target="${urlId}" data-name-target="${nameId}" data-size-target="${sizeId}" style="display:none"></label>
+      </div>
+    </div>
+    <div style="text-align:right"><button type="button" class="btn danger sm" data-rremove>Remove</button></div>
+  </div>`;
+}
+function collectResources(container) {
+  return $$(".res-card", container).map((card) => {
+    const g = (k) => { const el = card.querySelector(`[data-rfield="${k}"]`); return el ? el.value.trim() : ""; };
+    return { name: g("name"), url: g("url"), size: g("size") };
+  }).filter((r) => r.url && r.name);
+}
 function courseEditor(c, opts) {
   c = c || {}; opts = opts || {}; const isEdit = !!c.id;
   const levels = ["Beginner", "Intermediate", "Advanced"];
@@ -724,9 +750,16 @@ function courseEditor(c, opts) {
     <div class="help">Each lesson can carry a video (upload an MP4 = protected & streamed securely, or paste a YouTube/Vimeo ID) plus rich content and downloadable files.</div>
     <div id="lessons">${(c.lessons || []).map(lessonCard).join("")}</div>
     <button type="button" class="btn ghost sm" id="add-lesson" style="margin-top:10px">+ Add lesson</button>
+    <h3 style="margin:22px 0 6px">Downloadable resources <small class="muted" style="font-weight:500">(optional)</small></h3>
+    <div class="help">Files or links students receive <b>after they buy</b> — source files, PDFs, templates, etc. Locked until purchase. Upload a file (big files go to Cloudinary automatically) or paste a link. Sell a download-only course by adding resources and no video lessons.</div>
+    <div id="resources">${(c.resources || []).map(resourceCard).join("")}</div>
+    <button type="button" class="btn ghost sm" id="add-resource" style="margin-top:10px">+ Add resource</button>
     <div class="form-actions"><button class="btn ghost" id="cancel">Cancel</button><button class="btn" id="save">${isEdit ? "Save changes" : "Create course"}</button></div>`);
 
   const lessons = $("#lessons");
+  const resources = $("#resources");
+  $("#add-resource").addEventListener("click", () => resources.insertAdjacentHTML("beforeend", resourceCard({})));
+  resources.addEventListener("click", (e) => { if (e.target.dataset.rremove !== undefined) { const rc = e.target.closest(".res-card"); if (rc) rc.remove(); } });
   $("#add-lesson").addEventListener("click", () => lessons.insertAdjacentHTML("beforeend", lessonCard({})));
   lessons.addEventListener("click", (e) => {
     const lcard = e.target.closest(".lesson-card"); if (!lcard) return;
@@ -760,6 +793,7 @@ function courseEditor(c, opts) {
     requirements: $("#c-requirements").value.split("\n").map((s) => s.trim()).filter(Boolean),
     authorBio: $("#c-authorbio").value.trim(),
     lessons: collectLessons(lessons),
+    resources: collectResources(resources),
   });
   $("#save").addEventListener("click", async () => {
     const payload = readPayload();
@@ -1228,6 +1262,36 @@ function xhrUpload(file, onProgress, origin, endpoint) {
   });
 }
 
+// Upload a large file DIRECTLY to Cloudinary from the browser (bypasses our
+// server + Cloudflare's ~100MB cap). The server only signs the request; the
+// bytes never touch our origin. Returns the same shape as xhrUpload.
+async function cloudinaryUpload(file, onProgress, folder) {
+  let sig;
+  const r = await fetch(API + "/cloudinary-sign?folder=" + encodeURIComponent(folder || "perotech"), { headers: { Authorization: "Bearer " + TOKEN } });
+  if (r.status === 503) { const e = new Error("Cloudinary not configured"); e.notConfigured = true; throw e; }
+  if (!r.ok) throw new Error("Could not sign the upload");
+  sig = await r.json();
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "https://api.cloudinary.com/v1_1/" + sig.cloudName + "/auto/upload");
+    xhr.upload.onprogress = (ev) => { if (ev.lengthComputable) onProgress(ev.loaded / ev.total, ev.loaded, ev.total); };
+    xhr.onload = () => {
+      let d = {}; try { d = JSON.parse(xhr.responseText || "{}"); } catch (e) {}
+      if (xhr.status >= 200 && xhr.status < 300 && d.secure_url) {
+        resolve({ path: d.secure_url, name: file.name, size: (file.size / 1048576).toFixed(1) + " MB", cloudinary: true });
+      } else reject(new Error((d.error && d.error.message) || "Cloudinary upload failed"));
+    };
+    xhr.onerror = () => reject(new Error("Network error during Cloudinary upload"));
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("api_key", sig.apiKey);
+    fd.append("timestamp", sig.timestamp);
+    fd.append("signature", sig.signature);
+    fd.append("folder", sig.folder);
+    xhr.send(fd);
+  });
+}
+
 // Delegated upload handler (works for fields injected into modals/views)
 document.addEventListener("change", async (e) => {
   const inp = e.target;
@@ -1264,17 +1328,25 @@ document.addEventListener("change", async (e) => {
     const endpoint = protectedUp ? "/upload-protected" : "/upload";
     const big = file.size > BIG_UPLOAD_BYTES;
     let data;
-    try {
-      data = await xhrUpload(file, onProg, big ? UPLOAD_SUBDOMAIN : "", endpoint);
-    } catch (err) {
-      if (big && UPLOAD_SUBDOMAIN && err.network) data = await xhrUpload(file, onProg, "", endpoint);
-      else throw err;
+    if (big) {
+      // Oversized files go straight to Cloudinary (no server/CDN size limit).
+      // If Cloudinary isn't set up, fall back to the DNS-only subdomain / origin.
+      try {
+        data = await cloudinaryUpload(file, onProg, protectedUp ? "perotech/course" : "perotech");
+      } catch (err) {
+        if (!err.notConfigured) throw err;
+        try { data = await xhrUpload(file, onProg, UPLOAD_SUBDOMAIN, endpoint); }
+        catch (e2) { if (UPLOAD_SUBDOMAIN && e2.network) data = await xhrUpload(file, onProg, "", endpoint); else throw e2; }
+      }
+    } else {
+      data = await xhrUpload(file, onProg, "", endpoint);
     }
-    const value = data.path || data.file; // public path, or protected filename
+    const value = data.path || data.file; // full URL (Cloudinary), public path, or protected filename
     const t = document.getElementById(targetId); if (t) t.value = value;
-    const isImg = /\.(png|jpe?g|gif|webp|svg|avif|bmp)$/i.test(value || "");
+    const asSrc = /^https?:\/\//i.test(value || "") ? value : "/" + value;
+    const isImg = /\.(png|jpe?g|gif|webp|svg|avif|bmp)(\?|$)/i.test(value || "");
     if (prev) prev.innerHTML = isImg
-      ? `<img src="/${value}" alt="" onerror="this.style.display='none'"/>`
+      ? `<img src="${asSrc}" alt="" onerror="this.style.display='none'"/>`
       : `<span class="upload-chip">${esc(data.name || value)}${data.size ? " · " + esc(data.size) : ""}</span>`;
     // auto-fill linked file name / size fields (for "file" blocks)
     if (inp.dataset.nameTarget) { const n = document.getElementById(inp.dataset.nameTarget); if (n && !n.value) n.value = data.name || ""; }

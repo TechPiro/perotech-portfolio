@@ -331,6 +331,17 @@
 .cd-curr-sub { color: #8a90a0; font-size: .88rem; margin-bottom: 12px; }
 .cd-reqs { color: #c9cedb; padding-left: 20px; line-height: 1.8; margin: 0; }
 .cd-reqs li { margin-bottom: 4px; }
+/* Downloadable course materials */
+.cd-res-list { display: flex; flex-direction: column; gap: 10px; }
+.cd-res { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 13px 16px;
+  border: 1px solid #23252f; border-radius: 12px; background: #14151c; color: #fff; font: inherit; font-weight: 600;
+  font-size: .95rem; text-decoration: none; cursor: pointer; transition: border-color .15s ease; }
+.cd-res:hover { border-color: var(--bg-accent); }
+.cd-res .cd-res-ic { flex: 0 0 auto; font-size: 1.05rem; }
+.cd-res .cd-res-name { flex: 1; min-width: 0; }
+.cd-res .cd-res-cta { flex: 0 0 auto; color: var(--bg-accent); font-weight: 700; font-size: .85rem; }
+.cd-res.locked { color: #b6bcc9; border-style: dashed; }
+.cd-res.locked .cd-res-cta { color: #8a90a0; }
 .cd-instructor .cd-inst-head { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
 .cd-inst-av { width: 56px; height: 56px; border-radius: 50%; flex: 0 0 auto; display: grid; place-items: center; overflow: hidden;
   font-weight: 800; font-size: 1.4rem; color: #fff; background: linear-gradient(135deg, var(--bg-accent), #7c4dff); }

@@ -100,7 +100,12 @@ const courseCard = (c) => ({
   // Optional Udemy-style detail fields (all render conditionally).
   outcomes: toList(c.outcomes), requirements: toList(c.requirements),
   authorBio: c.authorBio || '', language: c.language || 'English',
+  // Downloadable resources shown LOCKED (names/sizes only, never the URL) until
+  // the buyer is entitled — the entitled endpoint re-adds the real URLs.
+  resources: (c.resources || []).filter((r) => r && r.url && r.name).map((r) => ({ name: r.name, size: r.size || '' })),
 });
+// Full resources (with download URLs) — only for entitled buyers.
+const fullResources = (c) => (c.resources || []).filter((r) => r && r.url && r.name).map((r) => ({ name: r.name, url: r.url, size: r.size || '' }));
 // A lesson with content only when unlocked (entitled) or it's a free preview.
 function detailLesson(l, unlocked) {
   const base = lessonMeta(l);
@@ -123,7 +128,7 @@ router.get('/student/courses/:slug', requireStudent, (req, res) => {
   const c = readJSON('courses.json', []).find((x) => (x.slug || x.id) === req.params.slug);
   if (!c) return res.status(404).json({ error: 'Course not found' });
   if (!hasAccess(req.student.email, c.id)) return res.status(403).json({ error: 'You do not have access to this course yet.', locked: true });
-  res.json({ ...courseCard(c), unlocked: true, lessons: (c.lessons || []).map((l) => detailLesson(l, true)) });
+  res.json({ ...courseCard(c), unlocked: true, lessons: (c.lessons || []).map((l) => detailLesson(l, true)), resources: fullResources(c) });
 });
 
 // Courses the signed-in student can access (for their dashboard).
