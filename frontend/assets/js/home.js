@@ -49,6 +49,22 @@
       </div>`).join("");
   }).catch(() => {});
 
+  // ---- Recent SaaS products (last 2, newest first) ----
+  fetch("/api/products").then((r) => r.json()).then((items) => {
+    const wrap = document.getElementById("home-products");
+    if (!wrap || !Array.isArray(items) || !items.length) return;
+    const preview =
+      "M10 6V8H5V19H16V14H18V20C18 20.5523 17.5523 21 17 21H4C3.44772 21 3 20.5523 3 20V7C3 6.44772 3.44772 6 4 6H10ZM21 3V12L17.206 8.207L11.2071 14.2071L9.79289 12.7929L15.792 6.793L12 3H21Z";
+    wrap.innerHTML = items.slice(0, 2).map((p) => `
+      <div class="col-lg-12">
+        <div class="project-item">
+          <div class="image"><img src="${esc(p.image)}" alt="${esc(p.title)}" class="img-fluid w-100" /><a href="${esc(p.url)}" target="_blank" class="full-image-preview"><svg class="icon" stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="${preview}"></path></svg></a>
+            <div class="info"><span class="category">${esc(p.title)}</span></div>
+          </div>
+        </div>
+      </div>`).join("");
+  }).catch(() => {});
+
   // ---- Latest YouTube videos ----
   fetch("/api/videos").then((r) => r.json()).then((items) => {
     const track = document.getElementById("home-videos-track");

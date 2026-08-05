@@ -5,6 +5,22 @@
 
   const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const fmtDate = (d) => new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const attr = (s) => { s = String(s || ""); return /^https?:\/\//i.test(s) ? s : "/" + s.replace(/^\//, ""); };
+
+  // Accept a bare ID or a full URL for both providers (same rules as the course player).
+  const ytId = (s) => { const m = String(s || "").match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{6,})/); return m ? m[1] : String(s || "").trim(); };
+  const vimeoId = (s) => { const m = String(s || "").match(/vimeo\.com\/(?:video\/)?(\d+)/); return m ? m[1] : String(s || "").trim(); };
+  const playSvg = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  function embedUrlFor(b) {
+    if (b.kind === "youtube") return `https://www.youtube-nocookie.com/embed/${ytId(b.src)}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&color=white`;
+    if (b.kind === "vimeo") return `https://player.vimeo.com/video/${vimeoId(b.src)}?autoplay=1&title=0&byline=0&portrait=0`;
+    return "";
+  }
+  function posterForBlock(b) {
+    if (b.poster) return attr(b.poster);
+    if (b.kind === "youtube") return `https://i.ytimg.com/vi/${ytId(b.src)}/maxresdefault.jpg`;
+    return "";
+  }
 
   // Authentic Instagram verified seal (shown beside the author name)
   const IG_VERIFIED = '<svg class="ig-badge" viewBox="0 0 40 40" width="16" height="16" role="img" aria-label="Verified"><path fill="#3897f0" fill-rule="evenodd" d="M19.998 3.094 14.638 0l-2.972 5.15H5.432v6.354L0 14.64 3.094 20 0 25.359l5.432 3.137v5.905h5.975L14.638 40l5.36-3.094L25.358 40l3.232-5.6h6.162v-6.01L40 25.359 36.905 20 40 14.641l-5.248-3.03v-6.46h-6.419L25.358 0l-5.36 3.094Z"/><polygon fill="#fff" fill-rule="evenodd" points="28.157 12.358 24.072 16.443 17.072 23.443 12.831 19.202 9.992 22.041 17.072 29.121 30.996 15.197"/></svg>';
@@ -48,12 +64,57 @@
   const fileIcon =
     '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 18 15 15"></polyline></svg>';
 
+  // External videos (YouTube/Vimeo) get the same slick, Vimeo-style facade as the
+  // course player — a poster + play button; the provider iframe only loads on click.
   function videoBlock(b) {
-    let inner;
-    if (b.kind === "youtube") inner = `<iframe src="https://www.youtube.com/embed/${b.src}?rel=0" allow="encrypted-media; fullscreen" allowfullscreen></iframe>`;
-    else if (b.kind === "vimeo") inner = `<iframe src="https://player.vimeo.com/video/${b.src}" allow="fullscreen" allowfullscreen></iframe>`;
-    else inner = `<video src="${b.src}" controls preload="metadata" playsinline></video>`;
-    return `<figure class="bvideo"><div class="bvideo-frame">${inner}</div>${b.caption ? `<figcaption>${b.caption}</figcaption>` : ""}</figure>`;
+    const cap = b.caption ? `<figcaption>${esc(b.caption)}</figcaption>` : "";
+    if (b.kind === "youtube" || b.kind === "vimeo") {
+      const poster = posterForBlock(b);
+      const fb = b.kind === "youtube" ? `https://i.ytimg.com/vi/${ytId(b.src)}/hqdefault.jpg` : "";
+      return `<figure class="bvideo"><div class="bvideo-frame">
+        <div class="video-facade" data-embed="${esc(embedUrlFor(b))}" role="button" tabindex="0" aria-label="Play video">
+          ${poster ? `<img class="vf-poster" src="${esc(poster)}" alt=""${fb ? ` onerror="this.onerror=null;this.src='${fb}'"` : ""}/>` : ""}
+          <span class="vf-play">${playSvg}</span>
+        </div>
+      </div>${cap}</figure>`;
+    }
+    // Self-hosted mp4: the real <video> is shown up front (first frame = poster) with a
+    // persistent Vimeo-style button that hides on play and reappears on pause/end.
+    const src = attr(b.src);
+    const poster = b.poster ? ` poster="${esc(attr(b.poster))}"` : "";
+    return `<figure class="bvideo"><div class="bvideo-frame">
+      <div class="video-facade vf-native" aria-label="Video">
+        <video class="vf-video" src="${esc(src)}"${poster} preload="metadata" playsinline controls></video>
+        <button type="button" class="vf-play" aria-label="Play video">${playSvg}</button>
+      </div>
+    </div>${cap}</figure>`;
+  }
+  // Swap the facade for the real player on click / Enter / Space. A transparent
+  // shield covers the top-left (title / "Watch on YouTube") so it can't be clicked out.
+  function wireFacades(scope) {
+    (scope || document).querySelectorAll(".video-facade").forEach((facade) => {
+      // Native mp4: persistent styled button that toggles with the video's play/pause.
+      if (facade.classList.contains("vf-native")) {
+        const video = facade.querySelector(".vf-video");
+        const btn = facade.querySelector(".vf-play");
+        if (video && btn) {
+          btn.addEventListener("click", () => { video.play(); });
+          video.addEventListener("play", () => facade.classList.add("is-playing"));
+          video.addEventListener("pause", () => facade.classList.remove("is-playing"));
+          video.addEventListener("ended", () => facade.classList.remove("is-playing"));
+        }
+        return;
+      }
+      // External (YouTube/Vimeo): swap the facade for the provider iframe on click.
+      const load = () => {
+        const frame = facade.parentElement;
+        frame.innerHTML =
+          `<iframe src="${facade.dataset.embed}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>` +
+          `<span class="yt-shield" aria-hidden="true"></span>`;
+      };
+      facade.addEventListener("click", load);
+      facade.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); load(); } });
+    });
   }
   function codeBlock(b) {
     const lang = b.language || "plaintext";
@@ -118,6 +179,7 @@
       </div>${moreHtml}`;
 
     initEngage(post.slug || post.id);
+    wireFacades(root);
 
     const copyBtn = document.getElementById("share-copy");
     if (copyBtn) copyBtn.addEventListener("click", () => {

@@ -66,14 +66,19 @@
       </div>`;
     }
     if (v.kind === "mp4") {
-      const poster = v.poster ? ` poster="${esc(attr(v.poster))}"` : "";
       // A full URL means the video lives on Cloudinary (big file) — play it directly.
       // Otherwise stream the protected file through our entitlement-checked route.
       const isUrl = /^https?:\/\//i.test(v.src || "");
       const src = isUrl
-        ? esc(v.src)
+        ? v.src
         : `/api/lessons/${encodeURIComponent(COURSE.slug)}/${encodeURIComponent(lesson.id)}/video${lesson.free ? "" : (PT.token() ? "?t=" + encodeURIComponent(PT.token()) : "")}`;
-      return `<video src="${src}" controls controlslist="nodownload" preload="metadata" playsinline${poster}></video>`;
+      // The real <video> is rendered up front (its first frame is the poster) with a
+      // persistent Vimeo-style button that hides on play and reappears on pause/end.
+      const poster = v.poster ? ` poster="${esc(attr(v.poster))}"` : "";
+      return `<div class="video-facade vf-native" aria-label="${esc(lesson.title || "video")}">
+        <video class="vf-video" src="${esc(src)}"${poster} preload="metadata" playsinline controls></video>
+        <button type="button" class="vf-play" aria-label="Play video">${playSvg}</button>
+      </div>`;
     }
     return "";
   }
@@ -84,6 +89,9 @@
   function wireFacade(frame) {
     const facade = frame.querySelector(".video-facade");
     if (!facade) return;
+    // Native mp4: persistent styled button that toggles with the video's play/pause.
+    if (facade.classList.contains("vf-native")) { wireNative(facade); return; }
+    // External (YouTube/Vimeo): swap the facade for the provider iframe on click.
     const load = () => {
       frame.innerHTML =
         `<iframe src="${facade.dataset.embed}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>` +
@@ -91,6 +99,17 @@
     };
     facade.addEventListener("click", load);
     facade.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); load(); } });
+  }
+  // Keep the big Vimeo-style button in sync with a native <video>: it plays on
+  // click, hides while playing, and comes back whenever the video is paused/ends.
+  function wireNative(facade) {
+    const video = facade.querySelector(".vf-video");
+    const btn = facade.querySelector(".vf-play");
+    if (!video || !btn) return;
+    btn.addEventListener("click", () => { video.play(); });
+    video.addEventListener("play", () => facade.classList.add("is-playing"));
+    video.addEventListener("pause", () => facade.classList.remove("is-playing"));
+    video.addEventListener("ended", () => facade.classList.remove("is-playing"));
   }
 
   const isPlayable = (l) => !l.locked && (l.free || unlocked);
