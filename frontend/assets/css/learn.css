@@ -336,16 +336,47 @@
 .cd-reqs { color: #c9cedb; padding-left: 20px; line-height: 1.8; margin: 0; }
 .cd-reqs li { margin-bottom: 4px; }
 /* Downloadable course materials */
-.cd-res-list { display: flex; flex-direction: column; gap: 10px; }
-.cd-res { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 13px 16px;
-  border: 1px solid #23252f; border-radius: 12px; background: #14151c; color: #fff; font: inherit; font-weight: 600;
-  font-size: .95rem; text-decoration: none; cursor: pointer; transition: border-color .15s ease; }
-.cd-res:hover { border-color: var(--bg-accent); }
-.cd-res .cd-res-ic { flex: 0 0 auto; font-size: 1.05rem; }
-.cd-res .cd-res-name { flex: 1; min-width: 0; }
-.cd-res .cd-res-cta { flex: 0 0 auto; color: var(--bg-accent); font-weight: 700; font-size: .85rem; }
-.cd-res.locked { color: #b6bcc9; border-style: dashed; }
-.cd-res.locked .cd-res-cta { color: #8a90a0; }
+.cd-res-list { display: flex; flex-direction: column; gap: 16px; }
+/* Neon "DOWNLOAD NOW" banner button */
+.dl-now {
+  position: relative; display: flex; align-items: center; gap: 14px; width: 100%; max-width: 480px;
+  padding: 11px 18px; border-radius: 40px; text-align: left; text-decoration: none;
+  cursor: pointer; overflow: hidden; color: #fff; font: inherit;
+  border: 2px solid #34d17a;
+  background:
+    radial-gradient(130% 130% at 50% 50%, rgba(12,28,20,.35), rgba(3,10,7,.94)),
+    linear-gradient(180deg, #08221a, #030b08);
+  box-shadow: 0 0 22px rgba(52,209,122,.55), 0 0 60px rgba(52,209,122,.22), inset 0 0 28px rgba(52,209,122,.14);
+  transition: transform .18s ease, box-shadow .25s ease;
+}
+.dl-now::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background: repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,0,0,.16) 3px 4px); }
+.dl-now > * { position: relative; z-index: 1; }
+.dl-now:hover { transform: translateY(-2px);
+  box-shadow: 0 0 32px rgba(52,209,122,.85), 0 0 100px rgba(52,209,122,.35), inset 0 0 30px rgba(52,209,122,.2); }
+.dl-ic { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; color: #e9c667; }
+.dl-ic svg { width: 26px; height: 26px; filter: drop-shadow(0 2px 5px rgba(0,0,0,.55)); }
+.dl-term { font-family: "SFMono-Regular", Consolas, monospace; font-weight: 800; font-size: .78rem;
+  color: #e9c667; border: 1.5px solid rgba(233,198,103,.55); border-radius: 5px; padding: 1px 5px; line-height: 1; }
+.dl-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dl-title { font-size: clamp(1rem, 2.6vw, 1.35rem); font-weight: 900; letter-spacing: .04em; line-height: 1.05;
+  color: #fff; text-shadow: 0 1px 10px rgba(52,209,122,.45); }
+.dl-sub { font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #e9c667;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dl-arr-wrap { flex: 0 0 auto; color: #e9c667; display: inline-flex; }
+.dl-arr-wrap svg { width: 22px; height: 22px; filter: drop-shadow(0 0 5px rgba(233,198,103,.55)); }
+/* Locked = amber neon that funnels to checkout */
+.dl-now.locked { border-color: #e0a63a;
+  background: radial-gradient(130% 130% at 50% 50%, rgba(30,22,8,.35), rgba(12,8,3,.94)), linear-gradient(180deg, #241a08, #0d0803);
+  box-shadow: 0 0 22px rgba(224,166,58,.5), 0 0 55px rgba(224,166,58,.2), inset 0 0 26px rgba(224,166,58,.14); }
+.dl-now.locked:hover { box-shadow: 0 0 32px rgba(224,166,58,.8), 0 0 90px rgba(224,166,58,.3), inset 0 0 28px rgba(224,166,58,.2); }
+.dl-now.locked .dl-title { text-shadow: 0 1px 12px rgba(224,166,58,.45); }
+@media (max-width: 560px) {
+  .dl-now { padding: 10px 14px; gap: 10px; border-radius: 32px; }
+  .dl-ic svg { width: 22px; height: 22px; }
+  .dl-term { display: none; }
+  .dl-arr-wrap svg { width: 20px; height: 20px; }
+}
 .cd-instructor .cd-inst-head { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
 .cd-inst-av { width: 56px; height: 56px; border-radius: 50%; flex: 0 0 auto; display: grid; place-items: center; overflow: hidden;
   font-weight: 800; font-size: 1.4rem; color: #fff; background: linear-gradient(135deg, var(--bg-accent), #7c4dff); }

@@ -133,11 +133,23 @@
     document.querySelectorAll(".lesson-row").forEach((r) => r.classList.toggle("active", r.dataset.lid === selectedId));
   }
 
-  // Downloadable resource row. Locked (no URL) => prompts checkout; unlocked => download link.
+  // Downloadable resource — rendered as a big neon "DOWNLOAD NOW" banner button.
+  // Locked (no URL) => amber banner that prompts checkout; unlocked => green download link.
+  const dlBox = '<svg class="dl-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v8a1 1 0 0 1-.53.88l-8 4.5a1 1 0 0 1-.94 0l-8-4.5A1 1 0 0 1 3 16V8a1 1 0 0 1 .53-.88l8-4.5a1 1 0 0 1 .94 0l8 4.5A1 1 0 0 1 21 8Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg>';
+  const dlArrow = '<svg class="dl-arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
   function resRow(r) {
     const meta = r.size ? ` · ${esc(r.size)}` : "";
-    if (!r.url) return `<button type="button" class="cd-res locked" data-buy-res><span class="cd-res-ic">🔒</span><span class="cd-res-name">${esc(r.name)}${meta}</span><span class="cd-res-cta">Buy to download</span></button>`;
-    return `<a class="cd-res" href="${esc(attr(r.url))}" target="_blank" rel="noopener" download><span class="cd-res-ic">⬇</span><span class="cd-res-name">${esc(r.name)}${meta}</span><span class="cd-res-cta">Download</span></a>`;
+    const sub = `${esc(r.name || "File")}${meta} | SECURE ACCESS`;
+    if (!r.url) return `<button type="button" class="dl-now locked" data-buy-res>
+      <span class="dl-ic">${lock}<span class="dl-term">&gt;_</span></span>
+      <span class="dl-mid"><span class="dl-title">BUY TO DOWNLOAD</span><span class="dl-sub">${sub}</span></span>
+      <span class="dl-arr-wrap">${lock}</span>
+    </button>`;
+    return `<a class="dl-now" href="${esc(attr(r.url))}" target="_blank" rel="noopener" download>
+      <span class="dl-ic">${dlBox}<span class="dl-term">&gt;_</span></span>
+      <span class="dl-mid"><span class="dl-title">DOWNLOAD NOW</span><span class="dl-sub">${sub}</span></span>
+      <span class="dl-arr-wrap">${dlArrow}</span>
+    </a>`;
   }
 
   function curriculumRow(l, idx) {
