@@ -44,7 +44,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function cardHtml(c) {
-    const img = c.image ? `<div class="cc-thumb"><img src="${esc(c.image)}" alt="" loading="lazy" onerror="this.parentNode.style.display='none'"/>${c.badge ? `<span class="cc-badge ${esc(c.badge)}">${c.badge === "hot" ? "🔥 Hot" : "📈 Trending"}</span>` : ""}</div>` : "";
+    const bg = c.image ? (/^https?:\/\//i.test(c.image) ? c.image : "/" + String(c.image).replace(/^\//, "")) : "";
+    const img = c.image ? `<div class="cc-thumb" style="background-image:url('${esc(bg)}')"><img src="${esc(c.image)}" alt="" loading="lazy" onerror="this.parentNode.style.display='none'"/>${c.badge ? `<span class="cc-badge ${esc(c.badge)}">${c.badge === "hot" ? "🔥 Hot" : "📈 Trending"}</span>` : ""}</div>` : "";
     const labels = { post: "Read article →", product: "Visit site ↗", service: c.cta ? esc(c.cta) + " →" : "Learn more →" };
     const target = c.external ? ` target="_blank" rel="noopener"` : "";
     const kind = c.type === "post" ? "Article" : c.type === "product" ? "Product" : "Service";

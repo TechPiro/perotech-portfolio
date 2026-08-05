@@ -54,11 +54,18 @@
   position: relative;
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  background: #0d0f17;
+  background: #0d0f17 center/cover no-repeat;
 }
-/* contain (not cover) so uploaded thumbnails are never cropped on any device */
-.blog-card-thumb img { width: 100%; height: 100%; object-fit: contain; transition: transform 0.5s ease; }
+/* The whole image is always shown (contain, never cropped); the empty area is
+   filled with a blurred copy of the same image instead of black bars. */
+.blog-card-thumb::before {
+  content: ""; position: absolute; inset: 0; z-index: 0;
+  background-image: inherit; background-size: cover; background-position: center;
+  filter: blur(22px) brightness(0.55); transform: scale(1.25);
+}
+.blog-card-thumb img { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: contain; transition: transform 0.5s ease; }
 .blog-card:hover .blog-card-thumb img { transform: scale(1.07); }
+.blog-card-cat, .blog-card-badge { z-index: 2; }
 .blog-card-cat {
   position: absolute; top: 12px; left: 12px;
   font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
@@ -179,9 +186,9 @@
 }
 .blog-card-author .bca-name { color: #c4c9d4; font-size: 0.82rem; font-weight: 600; }
 .blog-card-author .blog-card-more { margin-left: auto; }
+/* Cover renders at its natural aspect ratio — full width, no letterbox bars */
 .article-cover {
-  width: 100%; aspect-ratio: 16 / 8; object-fit: contain;
-  background: #0d0f17;
+  width: 100%; height: auto; display: block;
   border-radius: 18px; margin-bottom: 34px;
 }
 
@@ -215,8 +222,20 @@
   color: #eef1f7; font-size: 1.4rem; font-weight: 500; font-style: normal; line-height: 1.5;
 }
 .article-body .bfig { margin: 26px 0; }
-.article-body .bfig img { width: 100%; border-radius: 14px; display: block; }
+.article-body .bfig-media { position: relative; display: block; width: 100%; }
+.article-body .bfig img { width: 100%; height: auto; border-radius: 14px; display: block; }
 .article-body .bfig figcaption { text-align: center; color: #7c8395; font-size: 0.85rem; margin-top: 10px; }
+/* download button on content images (top-right, like the reference) */
+.bimg-dl {
+  position: absolute; top: 12px; right: 12px; width: 40px; height: 40px;
+  display: grid; place-items: center; border-radius: 10px; color: #fff;
+  background: rgba(10, 12, 20, 0.7); border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(4px); opacity: 0; z-index: 2;
+  transition: opacity 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+.article-body .bfig-media:hover .bimg-dl, .bimg-dl:focus-visible { opacity: 1; }
+.bimg-dl:hover { background: var(--bg-accent); transform: translateY(-1px); }
+@media (hover: none) { .bimg-dl { opacity: 1; } } /* always visible on touch devices */
 
 .article-body .bvideo { margin: 26px 0; }
 .article-body .bvideo .bvideo-frame {

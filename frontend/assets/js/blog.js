@@ -12,6 +12,7 @@
   };
 
   let SETTINGS = {};
+  const abs = (s) => { s = String(s || ""); return /^https?:\/\//i.test(s) ? s : "/" + s.replace(/^\//, ""); };
   const DEFAULT_AVATAR = "assets/img/images/profile-large.webp";
   const authorAvatar = (p) => p.authorAvatar || SETTINGS.photo || DEFAULT_AVATAR;
   const authorName = (p) => p.author || SETTINGS.name || "PeroTech";
@@ -19,7 +20,7 @@
   function card(p) {
     return `
       <a class="blog-card" href="/blog/${encodeURIComponent(p.slug || p.id)}">
-        <div class="blog-card-thumb">
+        <div class="blog-card-thumb"${p.cover ? ` style="background-image:url('${abs(p.cover)}')"` : ""}>
           ${p.category ? `<span class="blog-card-cat">${p.category}</span>` : ""}
           ${BADGES[p.badge] || ""}
           <img src="${p.cover}" alt="${p.title}" loading="lazy" />

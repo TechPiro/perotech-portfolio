@@ -24,8 +24,11 @@
 }
 .course-card { display: flex; flex-direction: column; background: #14151c; border: 1px solid #23252f; border-radius: 16px; overflow: hidden; text-decoration: none; color: inherit; transition: transform .2s ease, border-color .2s ease; }
 .course-card:hover { transform: translateY(-4px); border-color: var(--bg-accent); }
-.course-thumb { position: relative; aspect-ratio: 16/9; background: #0d0f17; overflow: hidden; }
-.course-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.course-thumb { position: relative; aspect-ratio: 16/9; background: #0d0f17 center/cover no-repeat; overflow: hidden; }
+/* whole image always shown; letterbox filled with a blurred copy, not black bars */
+.course-thumb::before { content: ""; position: absolute; inset: 0; z-index: 0; background-image: inherit; background-size: cover; background-position: center; filter: blur(22px) brightness(.55); transform: scale(1.25); }
+.course-thumb img { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: contain; }
+.course-badge, .course-level { z-index: 2; }
 .course-badge { position: absolute; top: 10px; left: 10px; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 999px; color: #fff; background: linear-gradient(135deg, #ef4444, #f97316); }
 .course-badge.new { background: linear-gradient(135deg, #4770ff, #7c4dff); }
 .course-badge.bestseller { background: linear-gradient(135deg, #f59e0b, #eab308); color: #1a1300; }
@@ -139,8 +142,9 @@
 
 /* checkout / enroll panel */
 .enroll-card { position: sticky; top: 90px; background: #14151c; border: 1px solid #23252f; border-radius: 16px; overflow: hidden; }
-.enroll-cover { aspect-ratio: 16/9; background: #0d0f17; }
-.enroll-cover img { width: 100%; height: 100%; object-fit: contain; }
+.enroll-cover { aspect-ratio: 16/9; background: #0d0f17 center/cover no-repeat; overflow: hidden; }
+.enroll-cover::before { content: ""; position: absolute; inset: 0; z-index: 0; background-image: inherit; background-size: cover; background-position: center; filter: blur(22px) brightness(.55); transform: scale(1.25); }
+.enroll-cover img { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: contain; }
 .enroll-body { padding: 18px; }
 .enroll-price { font-size: 2rem; font-weight: 800; color: #fff; margin-bottom: 4px; }
 .enroll-price .owned { color: #22c55e; font-size: 1.2rem; }
@@ -353,7 +357,7 @@
 
 /* purchase card extras */
 .enroll-cover { position: relative; cursor: pointer; }
-.enroll-cover-play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+.enroll-cover-play { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center;
   color: #fff; font-weight: 700; font-size: .92rem; background: rgba(4,5,10,.4); opacity: 0; transition: opacity .2s ease; }
 .enroll-cover:hover .enroll-cover-play { opacity: 1; }
 .enroll-incl-title { color: #fff; font-weight: 700; font-size: .92rem; margin: 16px 0 2px; }

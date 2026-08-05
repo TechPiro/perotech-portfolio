@@ -162,7 +162,7 @@
   function enrollPanel() {
     const lessons = COURSE.lessons || [];
     const coverHtml = COURSE.cover
-      ? `<div class="enroll-cover"><img src="${attr(COURSE.cover)}" alt=""/><span class="enroll-cover-play">▶ Preview this course</span></div>`
+      ? `<div class="enroll-cover" style="background-image:url('${attr(COURSE.cover)}')"><img src="${attr(COURSE.cover)}" alt=""/><span class="enroll-cover-play">▶ Preview this course</span></div>`
       : "";
     if (unlocked) {
       return `<div class="enroll-card">${coverHtml}<div class="enroll-body">

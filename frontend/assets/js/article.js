@@ -11,6 +11,7 @@
   const ytId = (s) => { const m = String(s || "").match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{6,})/); return m ? m[1] : String(s || "").trim(); };
   const vimeoId = (s) => { const m = String(s || "").match(/vimeo\.com\/(?:video\/)?(\d+)/); return m ? m[1] : String(s || "").trim(); };
   const playSvg = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  const dlIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
   function embedUrlFor(b) {
     if (b.kind === "youtube") return `https://www.youtube-nocookie.com/embed/${ytId(b.src)}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&color=white`;
     if (b.kind === "vimeo") return `https://player.vimeo.com/video/${vimeoId(b.src)}?autoplay=1&title=0&byline=0&portrait=0`;
@@ -130,7 +131,7 @@
       case "subheading": return `<h3 class="bsh">${b.text}</h3>`;
       case "list": return `<ul class="bl">${(b.items || []).map((i) => `<li>${i}</li>`).join("")}</ul>`;
       case "quote": return `<blockquote class="bq">${b.text}</blockquote>`;
-      case "image": return `<figure class="bfig"><img src="${b.src}" alt="${esc(b.caption || "")}" loading="lazy" />${b.caption ? `<figcaption>${esc(b.caption)}</figcaption>` : ""}</figure>`;
+      case "image": return `<figure class="bfig"><div class="bfig-media"><img src="${attr(b.src)}" alt="${esc(b.caption || "")}" loading="lazy" /><a class="bimg-dl" href="${attr(b.src)}" download title="Download image" aria-label="Download image">${dlIcon}</a></div>${b.caption ? `<figcaption>${esc(b.caption)}</figcaption>` : ""}</figure>`;
       case "video": return videoBlock(b);
       case "code": return codeBlock(b);
       case "file": return fileBlock(b);
@@ -151,7 +152,7 @@
     const bodyHtml = (post.blocks || []).map(renderBlock).join("");
     const more = posts.filter((p) => (p.slug || p.id) !== (post.slug || post.id)).slice(0, 2);
     const moreHtml = more.length
-      ? `<div class="article-more"><h3>More articles</h3><div class="blog-grid">${more.map((p) => `<a class="blog-card" href="/blog/${encodeURIComponent(p.slug || p.id)}"><div class="blog-card-thumb">${p.category ? `<span class="blog-card-cat">${p.category}</span>` : ""}${BADGES[p.badge] || ""}<img src="${p.cover}" alt="${esc(p.title)}" loading="lazy" /></div><div class="blog-card-body"><div class="blog-card-meta">${fmtDate(p.date)}</div><h3 class="blog-card-title">${esc(p.title)}</h3><span class="blog-card-more">Read article →</span></div></a>`).join("")}</div></div>`
+      ? `<div class="article-more"><h3>More articles</h3><div class="blog-grid">${more.map((p) => `<a class="blog-card" href="/blog/${encodeURIComponent(p.slug || p.id)}"><div class="blog-card-thumb"${p.cover ? ` style="background-image:url('${attr(p.cover)}')"` : ""}>${p.category ? `<span class="blog-card-cat">${p.category}</span>` : ""}${BADGES[p.badge] || ""}<img src="${p.cover}" alt="${esc(p.title)}" loading="lazy" /></div><div class="blog-card-body"><div class="blog-card-meta">${fmtDate(p.date)}</div><h3 class="blog-card-title">${esc(p.title)}</h3><span class="blog-card-more">Read article →</span></div></a>`).join("")}</div></div>`
       : "";
 
     root.innerHTML = `

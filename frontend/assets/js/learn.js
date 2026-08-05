@@ -23,8 +23,9 @@
 
   function card(c) {
     const badge = c.badge ? `<span class="course-badge ${esc(c.badge)}">${BADGE_LABEL[c.badge] || c.badge}</span>` : "";
+    const cover = c.cover ? "/" + esc(c.cover) : "";
     return `<a class="course-card" href="/learn/${encodeURIComponent(c.slug || c.id)}">
-      <div class="course-thumb">${badge}<img src="/${esc(c.cover)}" alt="${esc(c.title)}" loading="lazy" onerror="this.style.display='none'"/></div>
+      <div class="course-thumb"${cover ? ` style="background-image:url('${cover}')"` : ""}>${badge}<img src="${cover}" alt="${esc(c.title)}" loading="lazy" onerror="this.style.display='none'"/></div>
       <div class="course-body">
         <div class="course-title">${esc(c.title)}</div>
         ${c.author ? `<div class="course-author">${esc(c.author)}</div>` : ""}
