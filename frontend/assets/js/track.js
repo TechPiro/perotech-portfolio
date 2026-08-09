@@ -12,3 +12,12 @@
     }).catch(function () {});
   } catch (e) {}
 })();
+
+// Load the timed newsletter modal on every page except the newsletter page itself.
+(function () {
+  if (/^\/newsletter(\/|$)/.test(location.pathname)) return;
+  var s = document.createElement("script");
+  s.src = "/assets/js/newsletter-modal.js";
+  s.defer = true;
+  document.head.appendChild(s);
+})();

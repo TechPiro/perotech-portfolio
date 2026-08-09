@@ -21,6 +21,9 @@ router.get('/tools', (req, res) => res.json(readJSON('tools.json', [])));
 router.get('/videos', (req, res) => res.json(readJSON('videos.json', [])));
 router.get('/settings', (req, res) => res.json(readJSON('settings.json', {})));
 
+// Zentra landing page content (public read; seeded defaults on first run).
+router.get('/zentra', (req, res) => res.json(readJSON('zentra.json', {})));
+
 // ---------- Blog likes ----------
 // likes.json shape: { [postId]: ["visitorId", ...] }
 router.get('/posts/:id/reactions', (req, res) => {

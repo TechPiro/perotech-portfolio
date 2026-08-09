@@ -7,8 +7,9 @@
 const fs = require('fs');
 const path = require('path');
 const { DATA_DIR, SEED_DIR, BACKEND_DIR, ensureDirs } = require('./paths');
+const { uniqueShortId } = require('./ids');
 
-const CONTENT_FILES = ['posts.json', 'motion.json', 'products.json', 'services.json', 'timeline.json', 'tools.json', 'videos.json', 'settings.json', 'courses.json'];
+const CONTENT_FILES = ['posts.json', 'motion.json', 'products.json', 'services.json', 'timeline.json', 'tools.json', 'videos.json', 'settings.json', 'courses.json', 'zentra.json'];
 
 function copyIfMissing(name, fromDir) {
   const dest = path.join(DATA_DIR, name);
@@ -56,8 +57,26 @@ function initData() {
   // Analytics: always start empty if absent.
   if (writeIfMissing('analytics.json', [])) seeded.push('analytics.json (empty)');
 
+  // Backfill short public ids on any existing posts that predate the feature.
+  ensurePostShortIds();
+
   if (seeded.length) console.log('🌱 Initialized data files:', seeded.join(', '));
   return seeded;
+}
+
+// Give every blog post a short, unique public id (used in /blog/<shortId>).
+// Idempotent: only writes when something was missing.
+function ensurePostShortIds() {
+  const file = path.join(DATA_DIR, 'posts.json');
+  let posts;
+  try { posts = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { return; }
+  if (!Array.isArray(posts)) return;
+  const used = new Set(posts.map((p) => p.shortId).filter(Boolean));
+  let changed = false;
+  for (const p of posts) {
+    if (!p.shortId) { p.shortId = uniqueShortId(used); used.add(p.shortId); changed = true; }
+  }
+  if (changed) { fs.writeFileSync(file, JSON.stringify(posts, null, 2)); console.log('🔗 Assigned short ids to', [...used].length, 'posts'); }
 }
 
 module.exports = { initData };

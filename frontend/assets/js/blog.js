@@ -19,7 +19,7 @@
 
   function card(p) {
     return `
-      <a class="blog-card" href="/blog/${encodeURIComponent(p.slug || p.id)}">
+      <a class="blog-card" href="/blog/${encodeURIComponent(p.shortId || p.slug || p.id)}">
         <div class="blog-card-thumb"${p.cover ? ` style="background-image:url('${abs(p.cover)}')"` : ""}>
           ${p.category ? `<span class="blog-card-cat">${p.category}</span>` : ""}
           ${BADGES[p.badge] || ""}

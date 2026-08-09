@@ -46,9 +46,10 @@ document.addEventListener("DOMContentLoaded", () => {
   function cardHtml(c) {
     const bg = c.image ? (/^https?:\/\//i.test(c.image) ? c.image : "/" + String(c.image).replace(/^\//, "")) : "";
     const img = c.image ? `<div class="cc-thumb" style="background-image:url('${esc(bg)}')"><img src="${esc(c.image)}" alt="" loading="lazy" onerror="this.parentNode.style.display='none'"/>${c.badge ? `<span class="cc-badge ${esc(c.badge)}">${c.badge === "hot" ? "🔥 Hot" : "📈 Trending"}</span>` : ""}</div>` : "";
-    const labels = { post: "Read article →", product: "Visit site ↗", service: c.cta ? esc(c.cta) + " →" : "Learn more →" };
+    const labels = { post: "Read article →", product: "Visit site ↗", service: c.cta ? esc(c.cta) + " →" : "Learn more →", course: "Start learning →", motion: "Watch the video →" };
     const target = c.external ? ` target="_blank" rel="noopener"` : "";
-    const kind = c.type === "post" ? "Article" : c.type === "product" ? "Product" : "Service";
+    const kinds = { post: "Article", product: "Product", service: "Service", course: "Course", motion: "Motion" };
+    const kind = kinds[c.type] || "Open";
     return `<a class="chat-card ${esc(c.type)}" href="${esc(c.url)}"${target}>
       ${img}
       <div class="cc-body">

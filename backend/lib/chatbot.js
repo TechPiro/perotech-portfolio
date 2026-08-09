@@ -17,6 +17,9 @@ function getPosts() {
 }
 function getProducts() { return readJSON('products.json', []); }
 function getServices() { return readJSON('services.json', []); }
+// Newest first (admin prepends new items, so index 0 is the latest).
+function getCourses() { return readJSON('courses.json', []).filter((c) => c.published !== false); }
+function getMotion() { return readJSON('motion.json', []); }
 
 function cardFor(type, id) {
   if (type === 'post') {
@@ -25,8 +28,27 @@ function cardFor(type, id) {
     return {
       type: 'post', id: p.slug || p.id, title: p.title,
       text: p.excerpt || '', image: p.cover || '',
-      url: 'article.html?slug=' + encodeURIComponent(p.slug || p.id),
+      url: '/blog/' + encodeURIComponent(p.shortId || p.slug || p.id),
       meta: p.readTime || '', badge: p.badge || '',
+    };
+  }
+  if (type === 'course') {
+    const c = getCourses().find((x) => (x.slug || x.id) === id || x.id === id);
+    if (!c) return null;
+    return {
+      type: 'course', id: c.slug || c.id, title: c.title,
+      text: c.subtitle || c.description || '', image: c.cover || '',
+      url: '/learn/' + encodeURIComponent(c.slug || c.id),
+      meta: c.level || '', badge: c.badge || '',
+    };
+  }
+  if (type === 'motion') {
+    const m = getMotion().find((x) => x.id === id);
+    if (!m) return null;
+    return {
+      type: 'motion', id: m.id, title: m.title,
+      text: m.description || m.client || '', image: m.thumb || m.cover || '',
+      url: '/motion',
     };
   }
   if (type === 'product') {
@@ -69,16 +91,44 @@ function ruleBased(messages, opts) {
   const who = opts.name ? opts.name.split(' ')[0] : '';
   const posts = getPosts();
   const latest = posts[0];
+  const latestCourse = getCourses()[0];
+  const latestMotion = getMotion()[0];
   const text = lastUserText(messages);
   // Whole-word matching so "yo" doesn't match "you", "ad" doesn't match "brand", etc.
   const has = (...words) => words.some((w) => new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(text));
 
-  // First contact / empty -> warm welcome + newest post
+  // First contact / empty -> warm welcome; proactively surface the latest course.
   if (!text) {
+    const cards = [];
+    let reply = `Hey${who ? ' ' + who : ' there'}, welcome to PeroTech! 👋 I build motion graphics & ads, automate things with AI, and ship bootstrapped SaaS.`;
+    if (latestCourse) {
+      reply += ` P.S. a lot of people are learning my latest course right now — I thought you might want to pick up this skill and add it to your list 👇`;
+      cards.push({ type: 'course', id: latestCourse.slug || latestCourse.id });
+    } else if (latest) {
+      cards.push({ type: 'post', id: latest.slug || latest.id });
+    }
     return {
-      reply: `Hey${who ? ' ' + who : ' there'}, welcome to PeroTech! 👋 I'm PeroTech — I build motion graphics & ads, automate things with AI, and ship bootstrapped SaaS. What can I help you with today? You can ask about my latest posts, my services, or the products I've built.`,
-      cards: latest ? [{ type: 'post', id: latest.slug || latest.id }] : [],
-      suggestions: ['Show me recent posts', 'What services do you offer?', 'Show your products'],
+      reply,
+      cards,
+      suggestions: ['🎬 See my latest video', 'What services do you offer?', 'Show your products'],
+    };
+  }
+
+  // Learning intent -> latest course, framed as social proof.
+  if (has('course', 'courses', 'learn', 'learning', 'skill', 'skills', 'training', 'study', 'upskill', 'class', 'bootcamp', 'tutorial', 'masterclass')) {
+    if (latestCourse) return {
+      reply: `A lot of people are learning this course right now 🔥 — thought you'd want to pick up this skill and add it to your list. Tap to start learning:`,
+      cards: [{ type: 'course', id: latestCourse.slug || latestCourse.id }],
+      suggestions: ['🎬 See my latest video', 'What services do you offer?'],
+    };
+  }
+
+  // Motion intent -> latest motion graphics video.
+  if (has('motion', 'graphics', 'explainer', 'animation', 'animate', 'reel', 'showreel', 'video', 'videos')) {
+    if (latestMotion) return {
+      reply: `We design motion graphics for brands 🎬 — here's the latest video we made. Want something like this for your brand?`,
+      cards: [{ type: 'motion', id: latestMotion.id }],
+      suggestions: ['What services do you offer?', 'Recommend a course'],
     };
   }
 
@@ -133,21 +183,29 @@ function buildSystemPrompt(opts) {
   const posts = getPosts().slice(0, 8).map((p) => ({ id: p.slug || p.id, title: p.title, excerpt: p.excerpt || '', badge: p.badge || '' }));
   const products = getProducts().map((p) => ({ id: p.id, title: p.title, subtitle: p.subtitle || '' }));
   const services = getServices().map((s) => ({ id: s.id, title: s.title, subtitle: s.subtitle || '' }));
+  const courses = getCourses().slice(0, 6).map((c) => ({ id: c.slug || c.id, title: c.title, subtitle: c.subtitle || c.description || '' }));
+  const motion = getMotion().slice(0, 6).map((m) => ({ id: m.id, title: m.title, description: m.description || '' }));
   const nameLine = opts.name ? `\nThe visitor's name is ${opts.name}. Greet them by their first name and use it naturally now and then.` : '';
 
   return `You are PeroTech (handle @PeroTechie) — a real person speaking in first person, not a generic "AI assistant". You are a friendly, sharp, motivating founder who does motion graphics & ads, AI automation, and builds bootstrapped SaaS products. You're chatting with a visitor on your portfolio website.${nameLine}
 
 Voice: warm, human, concise, a little playful. Genuinely read and understand what the visitor is asking — reference their actual words, and if a request is vague, ask one short clarifying question instead of guessing. Keep replies to 1–3 short sentences. Occasionally use an emoji. Never repeat the same canned line twice. Never claim to be an AI language model; you are PeroTech.
 
-Your goals: greet visitors, truly understand what they need, answer helpfully, and recommend the most relevant content. When it helps, surface specific posts, products, or services from the catalog below by their id — the website will render rich preview cards for whatever you pick, so don't paste raw URLs. If nothing in the catalog fits, just answer conversationally with no cards.
+Your goals: greet visitors, truly understand what they need, answer helpfully, and recommend the most relevant content. When it helps, surface specific posts, products, services, courses, or motion videos from the catalog below by their id — the website will render rich preview cards for whatever you pick, so don't paste raw URLs. If nothing in the catalog fits, just answer conversationally with no cards.
 
-CATALOG (only reference these ids):
+Proactive nudges (use naturally, don't force):
+- When someone shows interest in learning, skills, or growth, recommend the LATEST course (first id in COURSES) and mention that a lot of people are learning it right now — you thought they might want to add this skill to their list.
+- When someone asks about motion graphics, video, animation, ads, or brand visuals, surface the LATEST motion video (first id in MOTION) and note that you design motion graphics for brands — "here's the latest video we made".
+
+CATALOG (only reference these ids; COURSES and MOTION are newest-first):
 POSTS: ${JSON.stringify(posts)}
 PRODUCTS: ${JSON.stringify(products)}
 SERVICES: ${JSON.stringify(services)}
+COURSES: ${JSON.stringify(courses)}
+MOTION: ${JSON.stringify(motion)}
 
 Respond with ONLY a JSON object (no markdown, no backticks) in exactly this shape:
-{"reply": "your message", "cards": [{"type":"post|product|service","id":"<id from catalog>"}], "suggestions": ["short reply chip", "another chip"]}
+{"reply": "your message", "cards": [{"type":"post|product|service|course|motion","id":"<id from catalog>"}], "suggestions": ["short reply chip", "another chip"]}
 
 Rules:
 - "cards" may be empty []. Include 1–3 cards only when genuinely relevant.

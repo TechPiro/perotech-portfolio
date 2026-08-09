@@ -122,6 +122,19 @@ const FRONTEND = path.join(__dirname, '..', 'frontend');
 const SITE_URL = (process.env.PUBLIC_URL || 'https://perotechie.com').replace(/\/+$/, '');
 const escapeHtml = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+// Remove a page's existing <title>, description, canonical, and og:/twitter: meta
+// tags so freshly injected ones don't duplicate the static defaults.
+function stripSeoTags(html) {
+  return html
+    .replace(/<title>[\s\S]*?<\/title>\s*/i, '')
+    .replace(/<meta[^>]*(?:property=["']og:[^"']*["']|name=["']twitter:[^"']*["']|name=["']description["'])[^>]*>\s*/gi, '')
+    .replace(/<link[^>]*rel=["']canonical["'][^>]*>\s*/gi, '');
+}
+// Inject fresh SEO/OG tags into <head>, replacing any existing ones.
+function injectHead(html, tags) {
+  return stripSeoTags(html).replace('</head>', '    ' + tags + '\n</head>');
+}
+
 // Build per-article OG/Twitter tags so shared blog links preview with the post
 // cover + title + description (social crawlers don't run JS, so we inject here).
 function articleOgTags(post) {
@@ -130,7 +143,7 @@ function articleOgTags(post) {
   const desc = escapeHtml(String(rawDesc).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 180));
   let img = post.cover || 'assets/img/og-image.png';
   if (!/^https?:/i.test(img)) img = SITE_URL + '/' + img.replace(/^\//, '');
-  const url = SITE_URL + '/blog/' + encodeURIComponent(post.slug || post.id);
+  const url = SITE_URL + '/blog/' + encodeURIComponent(post.shortId || post.slug || post.id);
   return [
     `<title>${title}</title>`,
     `<meta name="description" content="${desc}" />`,
@@ -156,11 +169,12 @@ app.get('/blog/:slug', (req, res, next) => {
   try { html = fs.readFileSync(path.join(FRONTEND, 'article.html'), 'utf8'); }
   catch (e) { return next(); }
   const posts = readJSON('posts.json', []);
-  const post = posts.find((p) => (p.slug || p.id) === req.params.slug && p.published !== false);
+  const param = req.params.slug;
+  const post = posts.find((p) => [p.shortId, p.slug, p.id].includes(param) && p.published !== false);
   if (post) {
-    // remove the file's default <title>, then inject article-specific tags
-    html = html.replace(/<title>[\s\S]*?<\/title>\s*/i, '');
-    html = html.replace('</head>', '    ' + articleOgTags(post) + '\n</head>');
+    // Canonicalize legacy long slug/id URLs to the short id (keeps old links working).
+    if (post.shortId && param !== post.shortId) return res.redirect(301, '/blog/' + post.shortId);
+    html = injectHead(html, articleOgTags(post));
   }
   res.type('html').send(html);
 });
@@ -169,6 +183,38 @@ app.get('/blog/:slug', (req, res, next) => {
 app.get(['/article', '/article.html'], (req, res) => {
   if (req.query.slug) return res.redirect(301, '/blog/' + encodeURIComponent(req.query.slug));
   res.redirect(301, '/blog');
+});
+
+// Blog index with social-preview tags (uses the newest post's cover as the card image).
+app.get('/blog', (req, res, next) => {
+  let html;
+  try { html = fs.readFileSync(path.join(FRONTEND, 'blog.html'), 'utf8'); }
+  catch (e) { return next(); }
+  const posts = readJSON('posts.json', []).filter((p) => p.published !== false);
+  const settings = readJSON('settings.json', {});
+  const title = 'PeroTech — Blog';
+  const desc = escapeHtml(settings.blogDescription || 'Tutorials, insights, and behind-the-scenes on motion design, ads, AI, and building a business online.');
+  let img = (posts[0] && posts[0].cover) || 'assets/img/og-image.png';
+  if (!/^https?:/i.test(img)) img = SITE_URL + '/' + String(img).replace(/^\//, '');
+  const url = SITE_URL + '/blog';
+  const tags = [
+    `<title>${title}</title>`,
+    `<meta name="description" content="${desc}" />`,
+    `<link rel="canonical" href="${url}" />`,
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:site_name" content="PeroTech" />`,
+    `<meta property="og:title" content="${title}" />`,
+    `<meta property="og:description" content="${desc}" />`,
+    `<meta property="og:url" content="${url}" />`,
+    `<meta property="og:image" content="${img}" />`,
+    `<meta property="og:image:width" content="1200" /><meta property="og:image:height" content="630" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${title}" />`,
+    `<meta name="twitter:description" content="${desc}" />`,
+    `<meta name="twitter:image" content="${img}" />`,
+  ].join('\n    ');
+  html = injectHead(html, tags);
+  res.type('html').send(html);
 });
 
 // Course detail at /learn/:slug with social preview tags injected.
@@ -193,14 +239,98 @@ app.get('/learn/:slug', (req, res, next) => {
       `<meta property="og:description" content="${desc}" />`,
       `<meta property="og:url" content="${url}" />`,
       `<meta property="og:image" content="${img}" />`,
+      `<meta property="og:image:width" content="1200" /><meta property="og:image:height" content="630" />`,
       `<meta name="twitter:card" content="summary_large_image" />`,
       `<meta name="twitter:title" content="${title}" />`,
       `<meta name="twitter:description" content="${desc}" />`,
       `<meta name="twitter:image" content="${img}" />`,
     ].join('\n    ');
-    html = html.replace(/<title>[\s\S]*?<\/title>\s*/i, '').replace('</head>', '    ' + tags + '\n</head>');
+    html = injectHead(html, tags);
   }
   res.type('html').send(html);
+});
+
+// Section-level social previews for Products & Motion (listing pages have no
+// per-item URL, so we show a representative image + title + description).
+function sectionOg(res, next, fileHtml, { title, desc, img }) {
+  let html;
+  try { html = fs.readFileSync(path.join(FRONTEND, fileHtml), 'utf8'); }
+  catch (e) { return next(); }
+  let image = img || 'assets/img/og-image.png';
+  if (!/^https?:/i.test(image)) image = SITE_URL + '/' + String(image).replace(/^\//, '');
+  const url = SITE_URL + '/' + fileHtml.replace(/\.html$/, '');
+  const d = escapeHtml(desc);
+  const tags = [
+    `<title>${escapeHtml(title)}</title>`,
+    `<meta name="description" content="${d}" />`,
+    `<link rel="canonical" href="${url}" />`,
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:site_name" content="PeroTech" />`,
+    `<meta property="og:title" content="${escapeHtml(title)}" />`,
+    `<meta property="og:description" content="${d}" />`,
+    `<meta property="og:url" content="${url}" />`,
+    `<meta property="og:image" content="${image}" />`,
+    `<meta property="og:image:width" content="1200" /><meta property="og:image:height" content="630" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${escapeHtml(title)}" />`,
+    `<meta name="twitter:description" content="${d}" />`,
+    `<meta name="twitter:image" content="${image}" />`,
+  ].join('\n    ');
+  html = injectHead(html, tags);
+  res.type('html').send(html);
+}
+app.get('/products', (req, res, next) => {
+  const items = readJSON('products.json', []);
+  sectionOg(res, next, 'products.html', {
+    title: 'PeroTech — SaaS Products',
+    desc: 'Bootstrapped SaaS products built and shipped by PeroTech — explore the tools I’ve launched.',
+    img: (items[0] && items[0].image) || 'assets/img/og-image.png',
+  });
+});
+app.get('/motion', (req, res, next) => {
+  const items = readJSON('motion.json', []);
+  sectionOg(res, next, 'motion.html', {
+    title: 'PeroTech — Motion Design & Ads',
+    desc: 'Motion graphics, explainer videos and ads PeroTech designs for brands. See the latest work.',
+    img: (items[0] && (items[0].thumb || items[0].cover)) || 'assets/img/og-image.png',
+  });
+});
+
+// Zentra landing page at /zentra with SEO/OG tags injected from the DB content.
+app.get('/zentra', (req, res, next) => {
+  let html;
+  try { html = fs.readFileSync(path.join(FRONTEND, 'zentra.html'), 'utf8'); }
+  catch (e) { return next(); }
+  const z = readJSON('zentra.json', {});
+  const meta = z.meta || {};
+  const title = escapeHtml(meta.title || 'Zentra — White-Label Trading Platform');
+  const desc = escapeHtml(meta.description || 'Launch your own Stock, Forex & Crypto trading platform.');
+  let img = meta.ogImage || 'assets/img/zentra/desktop.png';
+  if (!/^https?:/i.test(img)) img = SITE_URL + '/' + img.replace(/^\//, '');
+  const url = SITE_URL + '/zentra';
+  const tags = [
+    `<title>${title}</title>`,
+    `<meta name="description" content="${desc}" />`,
+    `<link rel="canonical" href="${url}" />`,
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:site_name" content="Zentra" />`,
+    `<meta property="og:title" content="${title}" />`,
+    `<meta property="og:description" content="${desc}" />`,
+    `<meta property="og:url" content="${url}" />`,
+    `<meta property="og:image" content="${img}" />`,
+    `<meta property="og:image:width" content="1200" /><meta property="og:image:height" content="630" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${title}" />`,
+    `<meta name="twitter:description" content="${desc}" />`,
+    `<meta name="twitter:image" content="${img}" />`,
+  ].join('\n    ');
+  html = injectHead(html, tags);
+  res.type('html').send(html);
+});
+// Protected content manager for the Zentra page (auth handled client-side + API).
+app.get('/zentra/admin', (req, res, next) => {
+  try { res.type('html').send(fs.readFileSync(path.join(FRONTEND, 'zentra-admin.html'), 'utf8')); }
+  catch (e) { next(); }
 });
 
 // /home -> homepage; *.html -> clean URL

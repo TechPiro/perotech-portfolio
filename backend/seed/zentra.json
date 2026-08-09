@@ -1,0 +1,116 @@
+{
+  "meta": {
+    "title": "Zentra — White-Label Trading Platform",
+    "description": "Launch your own Stock, Forex & Crypto trading platform. Full source code, admin console, web + mobile. Deploy anywhere. Now $197 (was $497).",
+    "ogImage": "assets/img/zentra/desktop.png",
+    "linkedinUrl": "#",
+    "footerText": "Zentra"
+  },
+  "offer": {
+    "priceOriginal": "$497",
+    "priceNow": "$197",
+    "discountBadge": "Limited-time launch discount",
+    "scarcity": "first 20 buyers",
+    "showScarcity": true,
+    "checkoutUrl": "#",
+    "customBuildUrl": "#"
+  },
+  "hero": {
+    "eyebrow": "White-Label Trading Platform",
+    "headline": "Launch Your Own Trading Platform — Without Building It From Scratch.",
+    "subhead": "A complete, production-grade Stock, Forex & Crypto trading platform you can brand, deploy, and make your own. Full user app. Powerful admin console. Live market data. One clean codebase.",
+    "trustLine": "Deploys on any host · Web + Mobile · Full source code included · Instant delivery",
+    "ctaPrimary": "Get Full Access — $197",
+    "ctaSecondary": "Watch Demo"
+  },
+  "video": {
+    "url": "#",
+    "poster": "assets/img/zentra/desktop.png"
+  },
+  "whatis": {
+    "text": "Zentra is a white-label trading platform — a complete, ready-to-brand web application for Stock, Forex, and Crypto markets, built on a modern TypeScript + React + Node stack. It runs as a single responsive application that renders as a full desktop dashboard on large screens and a native-feeling mobile app on phones — from one codebase, no separate builds. Users get live prices, trading signals, a portfolio, deposits, and withdrawals. Operators get a powerful admin console to run the entire platform.",
+    "cards": [
+      { "icon": "smartphone", "title": "Web + Mobile from one codebase" },
+      { "icon": "database", "title": "Zero external database" },
+      { "icon": "server", "title": "Deploy anywhere" },
+      { "icon": "palette", "title": "Fully white-label" }
+    ]
+  },
+  "carousel": [
+    { "image": "assets/img/zentra/iphone-light.png", "caption": "Home dashboard — balance, signals, and market movers at a glance." },
+    { "image": "assets/img/zentra/crypto-market.png", "caption": "Live crypto market — real prices, icons, and trends." },
+    { "image": "assets/img/zentra/forex-market.png", "caption": "Forex pairs with live rates and mini-charts." },
+    { "image": "assets/img/zentra/stock-detail.png", "caption": "Full stock detail — candlestick charts, key stats, buy/sell." },
+    { "image": "assets/img/zentra/buy.png", "caption": "Order ticket — leverage, order types, and position sizing." },
+    { "image": "assets/img/zentra/order-review.png", "caption": "Order review — take profit, stop loss, and fee breakdown." },
+    { "image": "assets/img/zentra/passcode.png", "caption": "Secure 6-digit passcode on every transaction." },
+    { "image": "assets/img/zentra/paid.png", "caption": "Instant order confirmation with full receipt." },
+    { "image": "assets/img/zentra/wallet.png", "caption": "Crypto deposits with live currency conversion." },
+    { "image": "assets/img/zentra/withdrawal.png", "caption": "Flexible withdrawals — crypto and fiat." },
+    { "image": "assets/img/zentra/feed.png", "caption": "Market news & signals feed, tagged by sentiment." },
+    { "image": "assets/img/zentra/profile.png", "caption": "Account center — KYC, security, referrals, dark mode." }
+  ],
+  "featuresUser": [
+    { "icon": "bar-chart", "title": "Unified market dashboard", "desc": "Live Stock, Forex & Crypto prices with real logos, icons, and flags." },
+    { "icon": "trending-up", "title": "Trading signals", "desc": "Entry, take profit, stop loss, and profit potential." },
+    { "icon": "chart-candle", "title": "Interactive candlestick charts", "desc": "TradingView charts with multiple timeframes." },
+    { "icon": "zap", "title": "One-tap Buy / Sell", "desc": "Leverage options: Cash, Regular, Day Trade, Margin." },
+    { "icon": "lock", "title": "Secure transaction passcode", "desc": "6-digit passcode required on every transaction." },
+    { "icon": "wallet", "title": "Live portfolio tracking", "desc": "Real-time profit/loss across all positions." },
+    { "icon": "credit-card", "title": "Crypto deposits", "desc": "Live currency conversion, QR codes & confirmation flow." },
+    { "icon": "refresh", "title": "Flexible withdrawals", "desc": "Crypto (BTC, ETH, USDT, LTC) + fiat (PayPal, Cash App, Zelle, bank)." },
+    { "icon": "message", "title": "News & signals feed", "desc": "Tagged bullish, bearish, or neutral." },
+    { "icon": "bell", "title": "Real-time notifications", "desc": "Instant alerts on orders, prices, and account activity." },
+    { "icon": "users", "title": "Profile management", "desc": "Picture upload & currency selection." },
+    { "icon": "moon", "title": "Dark & light mode", "desc": "Beautiful in both themes, remembered per user." },
+    { "icon": "key", "title": "Flexible sign-in", "desc": "Google Sign-In plus email/password." },
+    { "icon": "gift", "title": "Referral program", "desc": "A unique referral code for every user." }
+  ],
+  "featuresAdmin": [
+    { "icon": "bar-chart", "title": "Business analytics dashboard", "desc": "Live KPIs, revenue, signups, conversion, top assets, charts." },
+    { "icon": "users", "title": "User management", "desc": "Profiles, balances, account status, KYC, password resets." },
+    { "icon": "credit-card", "title": "Deposit & withdrawal control", "desc": "Approve/reject with auto-crediting & refunds." },
+    { "icon": "refresh", "title": "Order management", "desc": "Position settlement and order lifecycle control." },
+    { "icon": "layers", "title": "Market catalog control", "desc": "Add/edit/delete assets, live price editing, trending/rank, price source." },
+    { "icon": "message", "title": "Content publishing", "desc": "Signals, news feed, broadcast notifications." },
+    { "icon": "wallet", "title": "Wallet & method management", "desc": "Manage wallets and withdrawal methods." },
+    { "icon": "palette", "title": "White-label branding", "desc": "Name, logo, primary color, currency." },
+    { "icon": "shield", "title": "License management", "desc": "Control and manage platform licensing." }
+  ],
+  "whatYouGet": [
+    "Full, unencrypted source code (frontend + backend)",
+    "Admin access — the complete admin console",
+    "Web + Mobile responsive app from one codebase",
+    "Modern stack — TypeScript, React, Vite, Express, SQLite",
+    "Complete step-by-step deployment guide",
+    "Deploy anywhere — Hostinger, Vercel, Contabo, Render, GoDaddy, any Node host",
+    "White-label ready — rebrand in minutes",
+    "Live market data integrations (Binance, forex; optional stocks)",
+    "Installation & deployment support"
+  ],
+  "whyCards": [
+    { "icon": "shield", "title": "Production-grade engineering", "desc": "A real, robust foundation — not a flimsy template." },
+    { "icon": "smartphone", "title": "One codebase, every screen", "desc": "Desktop dashboard + mobile app from a single build." },
+    { "icon": "server", "title": "Lightweight & portable", "desc": "Zero external database — runs on cheap servers." },
+    { "icon": "palette", "title": "Truly white-label", "desc": "Rebrand and launch it as your own." },
+    { "icon": "code", "title": "Built and supported", "desc": "Made by a real dev team and actively maintained — not abandonware." }
+  ],
+  "disclaimer": "Zentra is sold as a software prototype and starter codebase for (1) builders & developers who want a production-grade foundation to customize and launch, and (2) individuals/companies who want a more advanced custom SaaS designed for them. By purchasing, you agree that you are solely responsible for how you deploy, configure, and use this software, and for legal and regulatory compliance in your jurisdiction — operating a trading/brokerage platform may require licensing. The seller is not liable for how the software is used. Sold as-is; support covers installation and deployment, not legal or financial advice.",
+  "reviewsMeta": { "rating": "4.8", "count": "217" },
+  "reviews": [
+    { "name": "Marcus Devlin", "role": "Founder, Helio Markets", "avatar": "assets/img/zentra/reviews/r1.jpg", "rating": 5, "date": "2 weeks ago", "text": "I'd been quoted $15k+ to build something like this. I bought Zentra, rebranded it over a weekend, and had a working platform live by Monday. The admin console is genuinely powerful — I run deposits, withdrawals and the whole market catalog from there." },
+    { "name": "Sofia Almeida", "role": "Indie founder", "avatar": "assets/img/zentra/reviews/r2.jpg", "rating": 5, "date": "1 month ago", "text": "Honestly didn't expect the code to be this clean. Deployed it on a $6 VPS with zero database headaches. Support actually replied and walked me through the DNS setup. Worth every dollar." },
+    { "name": "David Ekwueme", "role": "Fintech consultant", "avatar": "assets/img/zentra/reviews/r3.jpg", "rating": 5, "date": "3 weeks ago", "text": "I've bought a lot of 'trading scripts' that were garbage. This is the first one that felt production-grade — real candlestick charts, live prices, proper order flow. I've already recommended it to two of my clients." },
+    { "name": "Amara Bright", "role": "Crypto community builder", "avatar": "assets/img/zentra/reviews/r4.jpg", "rating": 4.5, "date": "5 days ago", "text": "Setup took me an afternoon as a non-dev just by following the guide. Rebranding to my own colors and logo was easy. Half a star off only because I wanted more docs on the stock API — but they helped me sort it over email." }
+  ],
+  "faq": [
+    { "q": "Do I get the full source code?", "a": "Yes — the complete, unencrypted frontend and backend. Yours to modify and rebrand." },
+    { "q": "Do I need to be a developer to deploy it?", "a": "Not necessarily. If you can follow step-by-step instructions, you can get it live — the guide walks you through every step." },
+    { "q": "Will it run on a cheap server?", "a": "Yes. It runs as a single Node process with an embedded database, so it works on modest/low-spec servers and budget VPS plans." },
+    { "q": "Can I rebrand it as my own?", "a": "Absolutely — change the name, logo, colors, and currency from the admin console in minutes." },
+    { "q": "Is the market data real?", "a": "Crypto (Binance) and forex are live and keyless out of the box; live stocks work with a free API key." },
+    { "q": "What do I get after payment?", "a": "Instant access to the full source code, admin access, and the deployment guide." },
+    { "q": "Can you help me deploy or build something more advanced?", "a": "Yes — deployment support is included, and a Custom Build service is available." },
+    { "q": "Is it legal to run a trading platform with this?", "a": "Zentra is a software product. Operating a trading/brokerage platform is regulated in most regions and may require licensing — you're responsible for compliance. See the disclaimer." }
+  ]
+}

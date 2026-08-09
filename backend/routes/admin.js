@@ -43,6 +43,7 @@ const courseStorage = multer.diskStorage({
 const courseUpload = multer({ storage: courseStorage, limits: { fileSize: MAX_COURSE_MB * 1024 * 1024 } });
 
 const { readJSON, writeJSON } = require('../lib/store');
+const { uniqueShortId } = require('../lib/ids');
 const { issue, requireAuth } = require('../lib/auth');
 const cloudinary = require('../lib/cloudinary');
 const { createTransporter, mailFrom, brandAttachments, smtpConfigured } = require('../lib/mailer');
@@ -65,7 +66,7 @@ const ANNOUNCE = {
 };
 const isExternal = (u) => /^https?:\/\//i.test(u || '');
 function announceLink(name, item, baseUrl) {
-  if (name === 'posts') return baseUrl + '/blog/' + (item.slug || item.id);
+  if (name === 'posts') return baseUrl + '/blog/' + (item.shortId || item.slug || item.id);
   if (name === 'products') return isExternal(item.url) ? item.url : baseUrl + '/products';
   if (name === 'services') {
     if (isExternal(item.url)) return item.url;
@@ -227,6 +228,8 @@ Object.entries(COLLECTIONS).forEach(([name, file]) => {
     while (items.some((i) => i.id === id)) id = base + '-' + n++;
     const item = { ...body, id };
     if (SLUGGED.has(name)) item.slug = id;
+    // Blog posts get a short, professional public id used in /blog/<shortId>.
+    if (name === 'posts' && !item.shortId) item.shortId = uniqueShortId(new Set(items.map((i) => i.shortId).filter(Boolean)));
     // Announce before writing so announcedAt persists. Drafts never send.
     const emailQueued = maybeAnnounce(name, item, notify, req);
     items.unshift(item);
@@ -263,6 +266,16 @@ router.get('/settings', (req, res) => res.json(readJSON('settings.json', {})));
 router.put('/settings', (req, res) => {
   const merged = { ...readJSON('settings.json', {}), ...req.body };
   writeJSON('settings.json', merged);
+  res.json(merged);
+});
+
+// ---------- Zentra landing page content ----------
+// Single JSON document (sections + list arrays). The admin saves whole sections
+// or whole arrays; a shallow merge lets partial section saves work.
+router.get('/zentra', (req, res) => res.json(readJSON('zentra.json', {})));
+router.put('/zentra', (req, res) => {
+  const merged = { ...readJSON('zentra.json', {}), ...(req.body || {}) };
+  writeJSON('zentra.json', merged);
   res.json(merged);
 });
 
