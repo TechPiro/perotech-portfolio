@@ -4,6 +4,7 @@ const router = express.Router();
 const geoip = require('geoip-lite');
 const { readJSON, writeJSON } = require('../lib/store');
 const { chat } = require('../lib/chatbot');
+const memberships = require('../lib/memberships');
 
 // Drafts (published === false) are hidden from the public; existing posts with
 // no `published` field are treated as published for backward compatibility.
@@ -14,7 +15,18 @@ router.get('/posts/:id', (req, res) => {
   res.json(post);
 });
 router.get('/motion', (req, res) => res.json(readJSON('motion.json', [])));
-router.get('/products', (req, res) => res.json(readJSON('products.json', [])));
+// Products: never expose the members-only deliverable url to the public — only
+// the marketing fields + how the item is gated (free / one-time / subscription).
+router.get('/products', (req, res) => {
+  const list = readJSON('products.json', []).map((p) => {
+    const { deliverable, ...rest } = p;
+    return { ...rest, access: p.access || 'free', hasDeliverable: !!(deliverable && deliverable.url) };
+  });
+  res.json(list);
+});
+
+// Public membership tiers for the pricing page.
+router.get('/memberships', (req, res) => res.json(memberships.publicConfig()));
 router.get('/services', (req, res) => res.json(readJSON('services.json', [])));
 router.get('/timeline', (req, res) => res.json(readJSON('timeline.json', [])));
 router.get('/tools', (req, res) => res.json(readJSON('tools.json', [])));

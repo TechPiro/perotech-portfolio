@@ -104,7 +104,7 @@ function showApp() {
 $$(".nav-link[data-view]").forEach((a) =>
   a.addEventListener("click", () => go(a.dataset.view))
 );
-const TITLES = { dashboard: "Dashboard", posts: "Blog Posts", motion: "Motion Projects", products: "Products", services: "Services", timeline: "Timeline", tools: "Favorite Tools", videos: "YouTube Videos", courses: "Courses", payments: "Payments", students: "Students", subscribers: "Subscribers", comments: "Comments", leads: "Chat Leads", broadcast: "Bulk Email", settings: "Settings" };
+const TITLES = { dashboard: "Dashboard", posts: "Blog Posts", motion: "Motion Projects", products: "Products", services: "Services", timeline: "Timeline", tools: "Favorite Tools", videos: "YouTube Videos", courses: "Courses", membership: "Membership", payments: "Payments", students: "Students", subscribers: "Subscribers", comments: "Comments", leads: "Chat Leads", broadcast: "Bulk Email", settings: "Settings" };
 function go(view) {
   $$(".nav-link[data-view]").forEach((a) => a.classList.toggle("active", a.dataset.view === view));
   $("#view-title").textContent = TITLES[view] || view;
@@ -542,14 +542,21 @@ function motionEditor(m) {
 
 /* ---- Products ---- */
 VIEWS.products = async () => {
-  const items = await api("GET", "/products");
+  const [items] = await Promise.all([api("GET", "/products"), loadTiers()]);
+  const badge = (p) => {
+    const a = p.access || "free";
+    if (a === "subscription") return `<span class="pill" style="background:rgba(71,112,255,.16);color:#6f93ff">Members${p.tier ? " · " + esc(p.tier) : ""}</span>`;
+    if (a === "onetime") return `<span class="pill" style="background:rgba(52,209,122,.16);color:#34d17a">$${esc(p.price || 0)}</span>`;
+    return `<span class="muted" style="font-size:.78rem">Free</span>`;
+  };
   $("#view").innerHTML = `
     <div class="panel">
       <div class="panel-head"><h3>${items.length} product(s)</h3><button class="btn sm" id="new">+ New Product</button></div>
-      ${items.length ? `<table class="table"><thead><tr><th></th><th>Title</th><th>Subtitle</th><th>URL</th><th></th></tr></thead><tbody>
+      ${items.length ? `<table class="table"><thead><tr><th></th><th>Title</th><th>Access</th><th>URL</th><th></th></tr></thead><tbody>
         ${items.map((p) => `<tr>
           <td><img class="thumb-sm" src="/${esc(p.image || "")}" onerror="this.style.visibility='hidden'"/></td>
-          <td><b>${esc(p.title)}</b></td><td class="muted">${esc(p.subtitle || "")}</td>
+          <td><b>${esc(p.title)}</b><div class="muted" style="font-size:.8rem">${esc(p.subtitle || "")}</div></td>
+          <td>${badge(p)}</td>
           <td class="muted" style="font-size:.8rem">${esc(p.url || "")}</td>
           <td><div class="actions"><button class="btn ghost sm" data-edit="${esc(p.id)}">Edit</button><button class="btn danger sm" data-del="${esc(p.id)}">Delete</button></div></td>
         </tr>`).join("")}</tbody></table>` : '<div class="empty">No products yet.</div>'}
@@ -562,14 +569,17 @@ function productEditor(p) {
   p = p || {}; const isEdit = !!p.id;
   openModal(isEdit ? "Edit Product" : "New Product", `
     <div class="grid-2">${field("Title", "pr-title", p.title || "")}${field("Subtitle", "pr-sub", p.subtitle || "")}</div>
-    ${field("Website URL", "pr-url", p.url || "https://")}
+    ${field("Marketing / website URL (public)", "pr-url", p.url || "https://")}
     ${uploadField("Image", "pr-img", p.image || "")}
+    ${accessFieldset("pr", p, { product: true })}
     ${notifyToggle(!isEdit, "product")}
     <div class="form-actions"><button class="btn ghost" id="cancel">Cancel</button><button class="btn" id="save">${isEdit ? "Save" : "Create"}</button></div>`);
+  wireAccess("pr", true);
   $("#cancel").addEventListener("click", closeModal);
   $("#save").addEventListener("click", async () => {
-    const payload = { title: $("#pr-title").value.trim(), subtitle: $("#pr-sub").value.trim(), url: $("#pr-url").value.trim(), image: $("#pr-img").value.trim(), notify: notifyChecked() };
+    const payload = { title: $("#pr-title").value.trim(), subtitle: $("#pr-sub").value.trim(), url: $("#pr-url").value.trim(), image: $("#pr-img").value.trim(), ...readAccess("pr", true), notify: notifyChecked() };
     if (!payload.title) return toast("Title required", "err");
+    if (payload.access === "subscription" && !payload.tier) return toast("Pick a membership tier", "err");
     try {
       if (isEdit) { await api("PUT", "/products/" + encodeURIComponent(p.id), payload); toast("Saved"); }
       else { const r = await api("POST", "/products", payload); toast(r.emailQueued ? `Created · emailing ${r.emailQueued} subscriber(s) 📣` : "Created"); }
@@ -619,7 +629,7 @@ function serviceEditor(s) {
 
 /* ---- Courses (paid training) ---- */
 VIEWS.courses = async () => {
-  const items = await api("GET", "/courses");
+  const [items] = await Promise.all([api("GET", "/courses"), loadTiers()]);
   $("#view").innerHTML = `
     ${draftsPanelHtml("course", "course")}
     <div class="panel">
@@ -735,6 +745,10 @@ function courseEditor(c, opts) {
       ${field("Price (USD)", "c-price", c.price != null ? c.price : "")}
     </div>
     <div class="grid-2">
+      ${selectField("Access", "c-access", [{ v: "onetime", label: "One-time purchase" }, { v: "subscription", label: "Members only (subscription)" }], c.access || "onetime")}
+      ${selectField("Minimum tier (members-only)", "c-tier", tierOptions().length ? tierOptions() : [{ v: "", label: "— no tiers defined —" }], c.tier || (TIERS[0] && TIERS[0].id) || "")}
+    </div>
+    <div class="grid-2">
       ${field("Rating (0–5, optional)", "c-rating", c.rating != null ? c.rating : "")}
       ${field("Students enrolled (optional)", "c-students", c.students != null ? c.students : "")}
     </div>
@@ -784,6 +798,8 @@ function courseEditor(c, opts) {
     category: $("#c-category").value.trim(),
     level: $("#c-level").value,
     price: parseFloat($("#c-price").value) || 0,
+    access: $("#c-access").value,
+    tier: $("#c-tier").value,
     rating: $("#c-rating").value ? parseFloat($("#c-rating").value) : null,
     students: $("#c-students").value ? parseInt($("#c-students").value, 10) : null,
     badge: $("#c-badge").value,
@@ -809,6 +825,85 @@ function courseEditor(c, opts) {
   // Auto-draft recovery: snapshot as you build the course, restore if cut off.
   watchDraft("course", c.id || "", readPayload);
   draftBanner("course", c.id || "", opts.fromDraft, (data) => courseEditor(data, { fromDraft: true }));
+}
+
+/* ---- Membership (recurring tiers) ---- */
+VIEWS.membership = async () => {
+  const [doc, subs] = await Promise.all([
+    api("GET", "/memberships"),
+    api("GET", "/subscriptions").catch(() => []),
+  ]);
+  const tiers = (doc.tiers || []).slice().sort((a, b) => (a.rank || 0) - (b.rank || 0));
+  const active = subs.filter((s) => s.status === "active").length;
+  $("#view").innerHTML = `
+    <div class="panel">
+      <div class="panel-head"><h3>Membership plans</h3>
+        <div class="actions"><button class="btn ghost sm" id="sync">↻ Sync Flutterwave plans</button><button class="btn sm" id="save-mem">Save changes</button></div></div>
+      <label class="notify-row"><input type="checkbox" id="mem-enabled" ${doc.enabled !== false ? "checked" : ""}/> <span><b>Memberships enabled</b><small>When off, the pricing page shows plans but checkout is disabled.</small></span></label>
+      <div class="grid-2">${field("Pricing page heading", "mem-heading", doc.heading || "")}${field("Yearly discount % (label only)", "mem-disc", doc.yearlyDiscountPct != null ? doc.yearlyDiscountPct : 20)}</div>
+      ${field("Pricing page subheading", "mem-sub", doc.subheading || "", true)}
+      <div id="mem-tiers">${tiers.map(tierCard).join("")}</div>
+      <div class="help" style="margin-top:10px">Prices are USD. Yearly is the total charged per year. “Sync Flutterwave plans” creates the recurring plans (per tier × interval × currency) needed for cards to auto-renew — run it after changing prices.</div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Members <small class="muted">· ${active} active / ${subs.length} total</small></h3></div>
+      ${subs.length ? `<table class="table"><thead><tr><th>Email</th><th>Plan</th><th>Status</th><th>Renews / ends</th><th>Via</th></tr></thead><tbody>
+        ${subs.map((s) => `<tr>
+          <td>${esc(s.email)}</td>
+          <td>${esc(s.tierTitle || s.tier)} <span class="muted">(${esc(s.interval || "monthly")})</span></td>
+          <td>${s.status === "active" ? (s.cancelAtPeriodEnd ? '<span class="pill" style="background:rgba(255,207,138,.16);color:#ffcf8a">cancelling</span>' : '<span class="pill" style="background:rgba(52,209,122,.16);color:#34d17a">active</span>') : `<span class="muted">${esc(s.status)}</span>`}</td>
+          <td class="muted">${s.currentPeriodEnd ? new Date(s.currentPeriodEnd).toLocaleDateString() : "—"}</td>
+          <td class="muted">${esc(s.provider || "")}</td>
+        </tr>`).join("")}</tbody></table>` : '<div class="empty">No members yet.</div>'}
+    </div>`;
+
+  $("#save-mem").addEventListener("click", async () => {
+    const outTiers = [...$("#mem-tiers").children].map((el) => ({
+      id: el.dataset.tid,
+      rank: parseInt(el.dataset.rank, 10) || 0,
+      title: $(".t-title", el).value.trim(),
+      description: $(".t-desc", el).value.trim(),
+      monthly: parseFloat($(".t-monthly", el).value) || 0,
+      yearly: parseFloat($(".t-yearly", el).value) || 0,
+      ctaText: $(".t-cta", el).value.trim(),
+      featured: $(".t-featured", el).checked,
+      features: $(".t-features", el).value.split("\n").map((s) => s.trim()).filter(Boolean),
+    }));
+    const payload = {
+      enabled: $("#mem-enabled").checked,
+      heading: $("#mem-heading").value.trim(),
+      subheading: $("#mem-sub").value.trim(),
+      yearlyDiscountPct: parseFloat($("#mem-disc").value) || 20,
+      tiers: outTiers,
+    };
+    try { await api("PUT", "/memberships", payload); toast("Membership plans saved"); go("membership"); }
+    catch (e) { toast(e.message, "err"); }
+  });
+
+  $("#sync").addEventListener("click", async () => {
+    const b = $("#sync"); b.disabled = true; b.textContent = "Syncing…";
+    try {
+      const r = await api("POST", "/memberships/sync-plans", {});
+      if (r.ok) toast(`Plans synced${r.created.length ? " · " + r.created.length + " created" : " · all up to date"}`);
+      else toast("Some plans failed: " + (r.errors || []).join("; "), "err");
+    } catch (e) { toast(e.message, "err"); }
+    b.disabled = false; b.textContent = "↻ Sync Flutterwave plans";
+  });
+};
+function tierCard(t) {
+  return `<div class="lesson-card" data-tid="${esc(t.id)}" data-rank="${esc(t.rank || 0)}" style="margin-top:12px">
+    <div class="grid-2">
+      <div class="field"><label>Title</label><input class="input t-title" value="${esc(t.title || "")}"/></div>
+      <div class="field"><label>CTA button text</label><input class="input t-cta" value="${esc(t.ctaText || "")}"/></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>Monthly price (USD)</label><input class="input t-monthly" value="${esc(t.monthly != null ? t.monthly : "")}"/></div>
+      <div class="field"><label>Yearly price (USD)</label><input class="input t-yearly" value="${esc(t.yearly != null ? t.yearly : "")}"/></div>
+    </div>
+    <div class="field"><label>Short description</label><input class="input t-desc" value="${esc(t.description || "")}"/></div>
+    <div class="field"><label>Features (one per line)</label><textarea class="textarea t-features">${esc((t.features || []).join("\n"))}</textarea></div>
+    <label class="notify-row" style="margin:0"><input type="checkbox" class="t-featured" ${t.featured ? "checked" : ""}/> <span><b>Highlight as “Most Popular”</b></span></label>
+  </div>`;
 }
 
 /* ---- Payments ---- */
@@ -1223,6 +1318,64 @@ function field(label, id, val, textarea) {
     ? `<div class="field"><label>${label}</label><textarea class="textarea" id="${id}">${esc(val)}</textarea></div>`
     : `<div class="field"><label>${label}</label><input class="input" id="${id}" value="${esc(val)}" /></div>`;
 }
+function selectField(label, id, options, val) {
+  return `<div class="field"><label>${label}</label><select class="select" id="${id}">${options.map((o) =>
+    `<option value="${esc(o.v)}" ${String(o.v) === String(val) ? "selected" : ""}>${esc(o.label)}</option>`).join("")}</select></div>`;
+}
+// Cached membership tiers (loaded by views that need them).
+let TIERS = [];
+function tierOptions() { return TIERS.map((t) => ({ v: t.id, label: t.title })); }
+
+// Access-gating fields shared by courses & products. `opts.product` adds the
+// members-only deliverable inputs. Wire with wireAccess(prefix) after openModal.
+function accessFieldset(prefix, item, opts) {
+  item = item || {}; opts = opts || {};
+  const access = item.access || (opts.product ? "free" : "onetime");
+  const modes = opts.product
+    ? [{ v: "free", label: "Free (public link)" }, { v: "onetime", label: "One-time purchase" }, { v: "subscription", label: "Members only (subscription)" }]
+    : [{ v: "onetime", label: "One-time purchase" }, { v: "subscription", label: "Members only (subscription)" }];
+  const tierOpts = tierOptions().length ? tierOptions() : [{ v: "", label: "— no tiers defined —" }];
+  let html = `<div class="access-box" style="border:1px solid var(--border,#2a2c38);border-radius:12px;padding:12px 14px;margin:6px 0 12px">
+    <div style="font-weight:700;margin-bottom:8px;font-size:.9rem">🔒 Access</div>
+    ${selectField("How is this unlocked?", prefix + "-access", modes, access)}
+    <div id="${prefix}-onetime-wrap">${field("Price (USD, one-time)", prefix + "-price", item.price != null ? item.price : "")}</div>
+    <div id="${prefix}-tier-wrap">${selectField("Minimum membership tier", prefix + "-tier", tierOpts, item.tier || (TIERS[0] && TIERS[0].id) || "")}</div>`;
+  if (opts.product) {
+    const d = item.deliverable || {};
+    html += `<div id="${prefix}-deliv-wrap">
+      ${selectField("What the buyer receives", prefix + "-dkind", [{ v: "link", label: "A link to open" }, { v: "download", label: "A file to download" }], d.kind || "link")}
+      ${uploadField("Deliverable file / URL (members-only)", prefix + "-durl", d.url || "", "*/*")}
+      ${field("Button label", prefix + "-dlabel", d.label || "Open")}
+    </div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+// Show/hide the price / tier / deliverable blocks based on the access mode.
+function wireAccess(prefix, isProduct) {
+  const sel = $("#" + prefix + "-access");
+  if (!sel) return;
+  const apply = () => {
+    const v = sel.value;
+    const one = $("#" + prefix + "-onetime-wrap"); if (one) one.style.display = v === "onetime" ? "" : "none";
+    const tier = $("#" + prefix + "-tier-wrap"); if (tier) tier.style.display = v === "subscription" ? "" : "none";
+    if (isProduct) { const d = $("#" + prefix + "-deliv-wrap"); if (d) d.style.display = v === "free" ? "none" : ""; }
+  };
+  sel.addEventListener("change", apply); apply();
+}
+// Read the gating fields back into a payload fragment.
+function readAccess(prefix, isProduct) {
+  const access = ($("#" + prefix + "-access") || {}).value || "free";
+  const out = { access };
+  if (access === "onetime") out.price = Number(($("#" + prefix + "-price") || {}).value || 0) || 0;
+  if (access === "subscription") out.tier = ($("#" + prefix + "-tier") || {}).value || "";
+  if (isProduct) {
+    if (access === "free") out.deliverable = null;
+    else out.deliverable = { kind: ($("#" + prefix + "-dkind") || {}).value || "link", url: ($("#" + prefix + "-durl") || {}).value.trim(), label: ($("#" + prefix + "-dlabel") || {}).value.trim() || "Open" };
+  }
+  return out;
+}
+async function loadTiers() { try { const m = await api("GET", "/memberships"); TIERS = (m && m.tiers) || []; } catch (e) { TIERS = []; } }
 // Opt-in checkbox shown only when creating new content — emails an announcement
 // with thumbnail + "Read more" to every newsletter subscriber.
 function notifyToggle(show, what) {

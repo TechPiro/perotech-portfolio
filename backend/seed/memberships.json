@@ -1,0 +1,61 @@
+{
+  "enabled": true,
+  "heading": "Choose your membership",
+  "subheading": "Pick the plan that fits where you are right now. Every plan unlocks a growing library of software, tools, and resources — upgrade or cancel anytime.",
+  "currency": "USD",
+  "yearlyDiscountPct": 20,
+  "tiers": [
+    {
+      "id": "starter",
+      "rank": 1,
+      "title": "Starter",
+      "description": "Perfect for getting started with the essentials.",
+      "monthly": 29,
+      "yearly": 278,
+      "featured": false,
+      "ctaText": "Get Starter",
+      "features": [
+        "Access to free software & open-source AI models",
+        "Guided installation & setup walkthroughs",
+        "Community updates & newsletter"
+      ],
+      "flw": {}
+    },
+    {
+      "id": "professional",
+      "rank": 2,
+      "title": "Professional",
+      "description": "For creators and founders ready to grow.",
+      "monthly": 99,
+      "yearly": 950,
+      "featured": true,
+      "ctaText": "Go Professional",
+      "features": [
+        "Everything in Starter",
+        "Access to premium software that actually works",
+        "Premium tools & insights to grow your business",
+        "Downloadable resources for all my videos",
+        "Exclusive Discord rank & priority support",
+        "General support Discord access"
+      ],
+      "flw": {}
+    },
+    {
+      "id": "enterprise",
+      "rank": 3,
+      "title": "Enterprise",
+      "description": "Full access to everything I build.",
+      "monthly": 299,
+      "yearly": 2870,
+      "featured": false,
+      "ctaText": "Get Enterprise",
+      "features": [
+        "Everything in Professional",
+        "Access to my advanced websites & full software",
+        "Early access to prototype apps",
+        "Direct 1:1 priority support"
+      ],
+      "flw": {}
+    }
+  ]
+}

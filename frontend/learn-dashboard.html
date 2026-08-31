@@ -13,7 +13,8 @@
     <link rel="stylesheet" href="assets/css/icon-fixes.css" />
     <link rel="stylesheet" href="assets/css/blog.css" />
     <link rel="stylesheet" href="assets/css/learn.css" />
-    <title>PeroTech — My Courses</title>
+    <link rel="stylesheet" href="assets/css/dashboard.css" />
+    <title>PeroTech — My Dashboard</title>
     <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
 </head>
 
@@ -41,11 +42,9 @@
         </header>
         <main>
             <section class="content-box-area mt-4">
-                <div class="learn-wrap">
+                <div class="learn-wrap dash-wrap">
                     <div class="learn-authbar" id="learn-authbar"></div>
-                    <div id="dash-hero"></div>
-                    <h2 style="color:#fff;font-size:1.15rem;margin:2px 0 14px">My courses</h2>
-                    <div class="course-grid" id="my-grid"><div class="learn-empty">Loading…</div></div>
+                    <div id="dash-root"><div class="dash-empty">Loading your dashboard…</div></div>
                 </div>
             </section>
         </main>
@@ -53,44 +52,7 @@
     <script src="assets/js/mobile-menu.js"></script>
     <script src="assets/js/inline-svg.js"></script>
     <script src="assets/js/student-session.js"></script>
-    <script>
-        (function () {
-            if (!PT.token()) { location.href = "/student-login?next=/learn-dashboard"; return; }
-            PT.renderAuthBar(document.getElementById("learn-authbar"));
-            PT.renderBottomNav("courses");
-            const grid = document.getElementById("my-grid");
-            const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            const email = PT.email();
-            const name = PT.name() || (email.split("@")[0] || "there");
-            const hour = new Date().getHours();
-            const greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-            const card = (c) => `<a class="course-card" href="/learn/${encodeURIComponent(c.slug || c.id)}">
-                <div class="course-thumb"><img src="/${esc(c.cover)}" alt="${esc(c.title)}" loading="lazy" onerror="this.style.display='none'"/></div>
-                <div class="course-body"><div class="course-title">${esc(c.title)}</div><div class="course-sub">${esc(c.subtitle || "")}</div>
-                <div class="course-meta"><span class="course-price owned" style="color:#22c55e">Owned ✓</span><span class="course-lessons">${c.lessonCount} lessons</span></div></div></a>`;
-            const hero = (count, allAccess) => `
-                <div class="dash-hero">
-                    <div class="dh-top">
-                        <div class="dh-av">${esc((name.trim()[0] || "S").toUpperCase())}</div>
-                        <div><p class="dh-hi">${greet},</p><p class="dh-name">${esc(name)} 👋</p></div>
-                    </div>
-                    <div class="dash-stats">
-                        <div class="dash-stat"><div class="ds-num">${count}</div><div class="ds-lbl">Course${count === 1 ? "" : "s"} enrolled</div></div>
-                        <div class="dash-stat"><div class="ds-num">${allAccess ? "★" : (count > 0 ? "✓" : "—")}</div><div class="ds-lbl">${allAccess ? "All-access active" : (count > 0 ? "Active learner" : "Get started")}</div></div>
-                    </div>
-                </div>`;
-            fetch("/api/student/my-courses", { headers: PT.authHeaders() })
-                .then((r) => { if (r.status === 401) { PT.clear(); location.href = "/student-login"; throw new Error("auth"); } return r.json(); })
-                .then((d) => {
-                    const list = d.courses || [];
-                    document.getElementById("dash-hero").innerHTML = hero(list.length, !!d.allAccess);
-                    grid.innerHTML = list.length
-                        ? list.map(card).join("")
-                        : '<div class="learn-empty">You haven’t enrolled in any courses yet. <a href="/learn" style="color:#4770ff">Browse courses →</a></div>';
-                })
-                .catch((e) => { if (e.message !== "auth") grid.innerHTML = '<div class="learn-empty">Could not load your courses.</div>'; });
-        })();
-    </script>
+    <script src="assets/js/dashboard.js"></script>
 </body>
 
 </html>

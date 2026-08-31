@@ -183,6 +183,23 @@
         <button class="enroll-btn primary" id="start-btn">Start learning</button>
       </div></div>`;
     }
+    // Subscription-gated course: route to membership instead of a one-time buy.
+    if (COURSE.access === "subscription") {
+      const tierLabel = COURSE.tier ? (COURSE.tier.charAt(0).toUpperCase() + COURSE.tier.slice(1)) : "a";
+      return `<div class="enroll-card">${coverHtml}<div class="enroll-body">
+        <div class="enroll-price">🔒 Members only</div>
+        <div class="enroll-note">Included with the ${attr(tierLabel)} membership (and above).</div>
+        <a class="enroll-btn primary" href="/pricing" style="text-decoration:none;text-align:center;display:block">Unlock with membership →</a>
+        <div class="enroll-incl-title">Your membership unlocks:</div>
+        <ul class="enroll-list">
+          <li>▶ This course &amp; every members-only course</li>
+          <li>📦 Premium software, tools &amp; resources</li>
+          <li>📱 Access on mobile &amp; desktop</li>
+          <li>↺ Cancel anytime</li>
+        </ul>
+        <div class="enroll-guarantee">✓ Instant access after you join</div>
+      </div></div>`;
+    }
     const aa = SETTINGS.allAccess || {};
     const priceHtml = COURSE.allAccessOnly ? "All-access only" : money(COURSE.price || 0);
     return `<div class="enroll-card">
@@ -314,6 +331,8 @@
   // ---------- checkout ----------
   const COINS = ["BTC", "USDT", "SOL", "ETH"];
   function openCheckout(type) {
+    // Members-only courses aren't sold individually — send them to the plans.
+    if (type === "course" && COURSE.access === "subscription") { location.href = "/pricing"; return; }
     const overlay = document.getElementById("checkout");
     const dlg = document.getElementById("ck-dialog");
     const aa = SETTINGS.allAccess || {};

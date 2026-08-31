@@ -49,7 +49,9 @@ const cloudinary = require('../lib/cloudinary');
 const { createTransporter, mailFrom, brandAttachments, smtpConfigured } = require('../lib/mailer');
 const { getBroadcastTemplate, renderEmailBlocks, getAnnouncementTemplate } = require('../emailTemplates');
 const { countryName, flagEmoji, suggestionFor } = require('../lib/geo');
-const { sendAccessEmail } = require('../lib/grant');
+const { sendAccessEmail, grantSubscription, ensurePaymentPlan } = require('../lib/grant');
+const memberships = require('../lib/memberships');
+const { chargeFor } = require('../lib/grant');
 
 // Subscribers live in DATA_DIR (persistent) via the shared store.
 const readSubs = () => readJSON('subscribers.json', []);
@@ -279,6 +281,57 @@ router.put('/zentra', (req, res) => {
   res.json(merged);
 });
 
+// ---------- Memberships (recurring tiers) ----------
+// Whole document (enabled flag + tiers array). Shallow merge; Flutterwave plan
+// ids stored under each tier.flw are preserved unless the admin overwrites them.
+router.get('/memberships', (req, res) => res.json(readJSON('memberships.json', {})));
+router.put('/memberships', (req, res) => {
+  const current = readJSON('memberships.json', {});
+  const body = req.body || {};
+  // Preserve cached Flutterwave plan ids per tier across edits (client omits them).
+  if (Array.isArray(body.tiers)) {
+    const flwById = {}; (current.tiers || []).forEach((t) => (flwById[t.id] = t.flw || {}));
+    body.tiers = body.tiers.map((t) => ({ ...t, flw: t.flw || flwById[t.id] || {} }));
+  }
+  const merged = { ...current, ...body };
+  writeJSON('memberships.json', merged);
+  res.json(merged);
+});
+
+// Create/refresh Flutterwave payment plans for every tier × interval × currency
+// so card checkouts can auto-renew. Safe to run repeatedly (each plan once).
+router.post('/memberships/sync-plans', async (req, res) => {
+  if (!require('../lib/flutterwave').configured()) return res.status(503).json({ error: 'Flutterwave is not configured (set FLW_SECRET_KEY).' });
+  const created = [];
+  const errors = [];
+  for (const t of memberships.tiers()) {
+    for (const interval of ['monthly', 'yearly']) {
+      const usd = interval === 'yearly' ? Number(t.yearly) : Number(t.monthly);
+      if (!(usd > 0)) continue;
+      for (const country of ['US', 'NG']) {
+        const charge = chargeFor(usd, country); // { currency, amount }
+        try {
+          const before = ((readJSON('memberships.json', {}).tiers || []).find((x) => x.id === t.id) || {}).flw || {};
+          const key = `${interval}:${charge.currency}`;
+          const existed = !!before[key];
+          const id = await ensurePaymentPlan(t.id, interval, charge.currency, charge.amount);
+          if (!existed && id) created.push(`${t.id} ${key} → ${id}`);
+        } catch (e) { errors.push(`${t.id} ${interval} ${charge.currency}: ${e.message}`); }
+      }
+    }
+  }
+  res.json({ ok: errors.length === 0, created, errors });
+});
+
+// All membership subscriptions (for the admin "Members" view).
+router.get('/subscriptions', (req, res) => {
+  const tierTitle = {}; memberships.tiers().forEach((t) => (tierTitle[t.id] = t.title));
+  const list = memberships.allSubs().slice()
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+    .map((s) => ({ ...s, tierTitle: tierTitle[s.tier] || s.tier }));
+  res.json(list);
+});
+
 // ---------- Subscribers ----------
 router.get('/subscribers', (req, res) => res.json(readSubs()));
 router.delete('/subscribers/:id', (req, res) => {
@@ -328,12 +381,19 @@ router.delete('/comments/:id', (req, res) => {
 
 // ---------- Payments & Students ----------
 router.get('/payments', (req, res) => {
-  const titleById = {};
-  readJSON('courses.json', []).forEach((c) => (titleById[c.id] = c.title));
+  const courseTitle = {}; readJSON('courses.json', []).forEach((c) => (courseTitle[c.id] = c.title));
+  const productTitle = {}; readJSON('products.json', []).forEach((p) => (productTitle[p.id] = p.title));
+  const tierTitle = {}; memberships.tiers().forEach((t) => (tierTitle[t.id] = t.title));
   const rank = (s) => (s === 'pending' ? 0 : 1);
+  const label = (p) => {
+    if (p.type === 'all-access') return 'All-access pass';
+    if (p.type === 'subscription') return (tierTitle[p.tier] || p.tier) + ' membership (' + (p.interval || 'monthly') + ')';
+    if (p.type === 'product') return productTitle[p.productId] || p.productId || 'Product';
+    return courseTitle[p.courseId] || p.courseId || 'Course';
+  };
   const list = readJSON('purchases.json', []).slice()
     .sort((a, b) => rank(a.status) - rank(b.status) || (b.createdAt - a.createdAt))
-    .map((p) => ({ ...p, itemTitle: p.type === 'all-access' ? 'All-access pass' : (titleById[p.courseId] || p.courseId || 'Course') }));
+    .map((p) => ({ ...p, itemTitle: label(p) }));
   res.json(list);
 });
 router.post('/payments/:id/approve', async (req, res) => {
@@ -345,9 +405,17 @@ router.post('/payments/:id/approve', async (req, res) => {
     p.approvedAt = Date.now();
     if (p.type === 'all-access') p.expiresAt = Date.now() + (p.planDays || 30) * 86400000;
     writeJSON('purchases.json', purchases);
+    // A crypto/manual membership activates a renewable subscription on approval.
+    if (p.type === 'subscription') {
+      grantSubscription({ email: p.email, tier: p.tier, interval: p.interval, provider: 'crypto', amountUsd: p.amount, days: p.planDays });
+    }
   }
   const baseUrl = process.env.PUBLIC_URL || (req.protocol + '://' + req.get('host'));
-  const title = p.type === 'all-access' ? 'All-access pass' : (readJSON('courses.json', []).find((c) => c.id === p.courseId) || {}).title;
+  const tierT = memberships.tierById(p.tier);
+  const title = p.type === 'all-access' ? 'All-access pass'
+    : p.type === 'subscription' ? ((tierT && tierT.title) || p.tier) + ' membership'
+    : p.type === 'product' ? (readJSON('products.json', []).find((x) => x.id === p.productId) || {}).title
+    : (readJSON('courses.json', []).find((c) => c.id === p.courseId) || {}).title;
   try { await sendAccessEmail(p.email, title, baseUrl, p.type === 'course' ? '/learn/' + p.courseId : '/learn-dashboard'); }
   catch (e) { console.error('[approve email]', e.message); }
   res.json({ ok: true });

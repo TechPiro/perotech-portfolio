@@ -9,7 +9,8 @@ const router = express.Router();
 const { readJSON, writeJSON } = require('../lib/store');
 const { COURSE_DIR } = require('../lib/paths');
 const { issueMagic, issueStudent, verifyAud, requireStudent } = require('../lib/auth');
-const { entitlementsFor, hasAccess, norm } = require('../lib/entitlements');
+const { entitlementsFor, hasAccess, norm, ownedProducts } = require('../lib/entitlements');
+const memberships = require('../lib/memberships');
 const { createTransporter, mailFrom, brandAttachments } = require('../lib/mailer');
 const { getMagicLinkTemplate } = require('../emailTemplates');
 
@@ -79,7 +80,48 @@ router.get('/student/me', requireStudent, (req, res) => {
   const s = students.find((x) => norm(x.email) === norm(email)) || { email };
   const courses = readJSON('courses.json', []);
   const ent = entitlementsFor(email, courses);
-  res.json({ email, name: s.name || '', allAccess: ent.allAccess, ownedCourseIds: ent.ownedCourseIds });
+  const sub = memberships.activeSubscription(email);
+  const tier = sub ? memberships.tierById(sub.tier) : null;
+  res.json({
+    email, name: s.name || '', avatar: s.avatar || '',
+    createdAt: s.createdAt || null,
+    allAccess: ent.allAccess, ownedCourseIds: ent.ownedCourseIds,
+    membership: sub ? {
+      tier: sub.tier, tierTitle: tier ? tier.title : sub.tier, rank: memberships.rankOf(sub.tier),
+      interval: sub.interval, status: sub.status, provider: sub.provider,
+      currentPeriodEnd: sub.currentPeriodEnd || null, cancelAtPeriodEnd: !!sub.cancelAtPeriodEnd,
+      autoRenew: sub.provider === 'flutterwave' && !!sub.flwPlanId && !sub.cancelAtPeriodEnd,
+      amountUsd: sub.amountUsd || 0, startedAt: sub.createdAt || null,
+    } : null,
+  });
+});
+
+// Update the student's own profile (display name + avatar url).
+router.put('/student/me', requireStudent, (req, res) => {
+  const email = req.student.email;
+  const students = readJSON('students.json', []);
+  let s = students.find((x) => norm(x.email) === norm(email));
+  if (!s) { s = { id: 's' + Date.now() + Math.random().toString(36).slice(2, 6), email, createdAt: Date.now() }; students.push(s); }
+  const body = req.body || {};
+  if (typeof body.name === 'string') s.name = body.name.trim().slice(0, 80);
+  if (typeof body.avatar === 'string') s.avatar = body.avatar.trim().slice(0, 400);
+  s.updatedAt = Date.now();
+  writeJSON('students.json', students);
+  res.json({ ok: true, name: s.name || '', avatar: s.avatar || '' });
+});
+
+// Products the signed-in student owns (one-time buys + tier-unlocked), with the
+// members-only deliverable (download/link) attached.
+router.get('/student/my-products', requireStudent, (req, res) => {
+  const products = readJSON('products.json', []);
+  const mine = ownedProducts(req.student.email, products);
+  res.json({
+    products: mine.map((p) => ({
+      id: p.id, title: p.title || '', subtitle: p.subtitle || '', image: p.image || '',
+      access: p.access || 'free', tier: p.tier || null, url: p.url || '',
+      deliverable: p.deliverable && p.deliverable.url ? { kind: p.deliverable.kind || 'link', url: p.deliverable.url, label: p.deliverable.label || 'Open' } : null,
+    })),
+  });
 });
 
 // ---------- Course catalog (public) ----------
@@ -93,6 +135,7 @@ const courseCard = (c) => ({
   id: c.id, slug: c.slug || c.id, title: c.title || '', subtitle: c.subtitle || '',
   description: c.description || '', cover: c.cover || '', level: c.level || '',
   price: c.price || 0, allAccessOnly: !!c.allAccessOnly, badge: c.badge || '',
+  access: c.access || 'onetime', tier: c.tier || null,
   lessonCount: (c.lessons || []).length,
   author: c.author || '', category: c.category || '',
   rating: c.rating != null ? Number(c.rating) : null,

@@ -9,7 +9,7 @@ const path = require('path');
 const { DATA_DIR, SEED_DIR, BACKEND_DIR, ensureDirs } = require('./paths');
 const { uniqueShortId } = require('./ids');
 
-const CONTENT_FILES = ['posts.json', 'motion.json', 'products.json', 'services.json', 'timeline.json', 'tools.json', 'videos.json', 'settings.json', 'courses.json', 'zentra.json'];
+const CONTENT_FILES = ['posts.json', 'motion.json', 'products.json', 'services.json', 'timeline.json', 'tools.json', 'videos.json', 'settings.json', 'courses.json', 'zentra.json', 'memberships.json'];
 
 function copyIfMissing(name, fromDir) {
   const dest = path.join(DATA_DIR, name);
@@ -53,6 +53,8 @@ function initData() {
   if (!fs.existsSync(path.join(DATA_DIR, 'courses.json')) && writeIfMissing('courses.json', [])) seeded.push('courses.json (empty)');
   if (writeIfMissing('students.json', [])) seeded.push('students.json (empty)');
   if (writeIfMissing('purchases.json', [])) seeded.push('purchases.json (empty)');
+  // Recurring memberships: tiers come from seed; live subscriptions start empty.
+  if (writeIfMissing('subscriptions.json', [])) seeded.push('subscriptions.json (empty)');
 
   // Analytics: always start empty if absent.
   if (writeIfMissing('analytics.json', [])) seeded.push('analytics.json (empty)');

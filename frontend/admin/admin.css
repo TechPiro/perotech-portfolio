@@ -84,7 +84,7 @@ button { font-family: inherit; cursor: pointer; }
 .topbar h1 { font-size: 1.25rem; font-weight: 800; margin: 0; }
 .topbar .who { color: var(--muted); font-size: 0.85rem; }
 .topbar .who b { color: var(--text); }
-.content { padding: 26px 28px 60px; max-width: 1100px; }
+.content { padding: 26px 28px 60px; max-width: 1440px; margin: 0 auto; }
 
 /* ---------- Cards / stats ---------- */
 .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 22px; }

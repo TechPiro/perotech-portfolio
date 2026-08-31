@@ -1,0 +1,62 @@
+/* Advanced student dashboard + professional profile (membership-aware). */
+.dash-wrap { max-width: 980px; margin: 0 auto; }
+
+/* section heads */
+.dash-sec { margin-top: 30px; }
+.dash-sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 2px 14px; }
+.dash-sec-head h2 { color: #fff; font-size: 1.12rem; font-weight: 800; margin: 0; }
+.dash-sec-head a { color: #6f93ff; font-size: .86rem; font-weight: 600; }
+
+/* hero enhancements: badge under the name */
+/* A global p{} rule beats inherited color, so pin the hero text white explicitly. */
+.dash-hero .dh-hi, .dash-hero .dh-name { color: #fff; }
+.dash-hero .dh-hi { opacity: .9; }
+.dash-hero .dh-tier { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: .74rem; font-weight: 700;
+  padding: 5px 12px; border-radius: 999px; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); color: #fff; }
+.dash-hero .dh-tier.free { background: rgba(255,255,255,.1); }
+
+/* membership panel */
+.mem-panel { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; background: #14151c; border: 1px solid #23252f;
+  border-radius: 18px; padding: 20px 22px; }
+.mem-panel.active { border-color: rgba(71,112,255,.5); background: linear-gradient(180deg, rgba(71,112,255,.08), #14151c 60%); }
+.mem-ic { width: 50px; height: 50px; border-radius: 14px; flex: 0 0 auto; display: grid; place-items: center; font-size: 1.5rem;
+  background: rgba(71,112,255,.16); color: #6f93ff; }
+.mem-main { flex: 1; min-width: 200px; }
+.mem-main h3 { color: #fff; font-size: 1.08rem; font-weight: 800; margin: 0; }
+.mem-main p { color: #98a1b5; font-size: .88rem; margin: 4px 0 0; line-height: 1.5; }
+.mem-main .mem-renew { color: #c4c9d4; }
+.mem-main .mem-warn { color: #ffcf8a; }
+.mem-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.mem-btn { border: none; cursor: pointer; font: inherit; font-weight: 700; font-size: .9rem; padding: 11px 18px; border-radius: 11px;
+  min-height: 44px; text-decoration: none; display: inline-flex; align-items: center; }
+.mem-btn.primary { background: linear-gradient(180deg, #5a86ff, #4770ff); color: #fff; }
+.mem-btn.ghost { background: transparent; color: #fff; border: 1px solid #33364a; }
+.mem-btn.ghost:hover { border-color: #4770ff; }
+
+/* product cards (owned) */
+.product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; }
+.pcard { display: flex; flex-direction: column; background: #14151c; border: 1px solid #23252f; border-radius: 16px; overflow: hidden; }
+.pcard-thumb { position: relative; aspect-ratio: 16/10; background: #0e0f15 center/cover no-repeat; overflow: hidden; }
+.pcard-thumb::before { content: ""; position: absolute; inset: 0; background-image: inherit; background-size: cover; background-position: center;
+  filter: blur(18px); transform: scale(1.2); opacity: .55; }
+.pcard-thumb img { position: relative; width: 100%; height: 100%; object-fit: contain; z-index: 1; }
+.pcard-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.pcard-body .pt { color: #fff; font-weight: 700; font-size: 1rem; }
+.pcard-body .ps { color: #98a1b5; font-size: .84rem; line-height: 1.4; }
+.pcard-tag { display: inline-flex; align-self: flex-start; margin-top: 6px; font-size: .68rem; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; padding: 3px 9px; border-radius: 999px; background: rgba(52,209,122,.14); color: #34d17a; }
+.pcard-dl { margin-top: 12px; text-align: center; text-decoration: none; background: linear-gradient(180deg, #5a86ff, #4770ff); color: #fff;
+  font-weight: 700; font-size: .9rem; padding: 11px; border-radius: 11px; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+.dash-empty { background: #14151c; border: 1px dashed #2a2c38; border-radius: 16px; padding: 26px; text-align: center; color: #8a90a0; font-size: .92rem; }
+.dash-empty a { color: #6f93ff; font-weight: 600; }
+
+/* profile: subscription + owned lists */
+.prof-badge-tier { background: linear-gradient(90deg, rgba(71,112,255,.25), rgba(125,92,255,.25)); border: 1px solid rgba(71,112,255,.5); }
+.p-manage { display: flex; gap: 10px; flex-wrap: wrap; margin: 4px 0 8px; }
+.p-cancel { background: none; border: 1px solid #43303a; color: #ff9caa; border-radius: 10px; padding: 9px 14px; font: inherit; font-weight: 600;
+  font-size: .84rem; cursor: pointer; min-height: 40px; }
+.p-cancel:hover { border-color: #ff6b81; }
+.p-editname { display: flex; gap: 8px; margin-top: 6px; }
+.p-editname input { flex: 1; background: #0c0f18; border: 1px solid #23252f; border-radius: 10px; color: #fff; font: inherit; padding: 10px 12px; }
+.p-editname button { border: none; background: var(--bg-accent, #4770ff); color: #fff; font: inherit; font-weight: 700; border-radius: 10px; padding: 0 16px; cursor: pointer; }
