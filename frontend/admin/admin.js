@@ -105,7 +105,13 @@ $$(".nav-link[data-view]").forEach((a) =>
   a.addEventListener("click", () => go(a.dataset.view))
 );
 const TITLES = { dashboard: "Dashboard", posts: "Blog Posts", motion: "Motion Projects", products: "Products", services: "Services", timeline: "Timeline", tools: "Favorite Tools", videos: "YouTube Videos", courses: "Courses", membership: "Membership", payments: "Payments", students: "Students", subscribers: "Subscribers", comments: "Comments", leads: "Chat Leads", broadcast: "Bulk Email", settings: "Settings" };
+// Background pollers (e.g. dashboard live/stats refresh). Cleared on view change.
+let POLLERS = [];
+function clearPollers() { POLLERS.forEach((id) => clearInterval(id)); POLLERS = []; }
+function addPoller(fn, ms) { POLLERS.push(setInterval(fn, ms)); }
+
 function go(view) {
+  clearPollers();
   $$(".nav-link[data-view]").forEach((a) => a.classList.toggle("active", a.dataset.view === view));
   $("#view-title").textContent = TITLES[view] || view;
   $("#view").innerHTML = '<div class="empty">Loading…</div>';
@@ -226,62 +232,89 @@ const richCard = (label, value, change, spark, accent) =>
   </div>`;
 
 VIEWS.dashboard = async () => {
+  async function loadLive() { try { renderLive(await api("GET", "/live")); } catch (e) {} }
+  async function loadStats() { const s = await api("GET", "/stats"); renderDashboard(s); await loadLive(); }
   try {
-    const s = await api("GET", "/stats");
-    const t = s.totals;
-    const max = Math.max(1, ...s.series.map((d) => d.count));
-    const topMax = Math.max(1, ...s.topPages.map((p) => p.count));
-    const sg = s.suggestion || { headline: "", tips: [] };
+    await loadStats();
+    addPoller(loadLive, 4000);   // live visitors: near real-time
+    addPoller(loadStats, 30000); // full stats refresh
+  } catch (e) { $("#view").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+};
 
-    // donut for top pages
-    const palette = ["#4770ff", "#7c4dff", "#22c55e", "#f59e0b", "#ef4444", "#0ea5e9", "#ec4899", "#14b8a6"];
-    const totalTop = s.topPages.reduce((a, p) => a + p.count, 0) || 1;
-    let acc = 0;
-    const donutStops = s.topPages.map((p, i) => {
-      const start = (acc / totalTop) * 360; acc += p.count; const end = (acc / totalTop) * 360;
-      return `${palette[i % palette.length]} ${start}deg ${end}deg`;
-    }).join(", ");
+function renderDashboard(s) {
+  const t = s.totals;
+  const max = Math.max(1, ...s.series.map((d) => d.count));
+  const sg = s.suggestion || { headline: "", tips: [] };
+  const palette = ["#4770ff", "#7c4dff", "#22c55e", "#f59e0b", "#ef4444", "#0ea5e9", "#ec4899", "#14b8a6"];
+  const totalTop = s.topPages.reduce((a, p) => a + p.count, 0) || 1;
+  let acc = 0;
+  const donutStops = s.topPages.map((p, i) => {
+    const start = (acc / totalTop) * 360; acc += p.count; const end = (acc / totalTop) * 360;
+    return `${palette[i % palette.length]} ${start}deg ${end}deg`;
+  }).join(", ");
+  const c = s.content || {};
+  const cc = (label, view, count, sub) =>
+    `<a class="content-card" data-go="${view}"><div class="cc-label">${label}</div><div class="cc-count">${count}</div><div class="cc-sub">${sub}</div></a>`;
 
-    const c = s.content || {};
-    const cc = (label, view, count, sub) =>
-      `<a class="content-card" data-go="${view}"><div class="cc-label">${label}</div><div class="cc-count">${count}</div><div class="cc-sub">${sub}</div></a>`;
+  $("#view").innerHTML = `
+    <div class="stat-grid five">
+      ${richCard("New visitors", t.visits, s.changes.visits, s.sparks.visits)}
+      ${richCard("Unique visitors", t.uniqueVisitors, s.changes.uniques, s.sparks.uniques)}
+      ${richCard("Subscribers", t.subscribers, s.changes.subs, s.sparks.subs)}
+      ${richCard("Visits today", t.visitsToday, undefined, s.sparks.visits)}
+      ${richCard("Content", t.posts + t.motion + t.products, undefined, undefined)}
+    </div>
 
-    $("#view").innerHTML = `
-      <div class="stat-grid five">
-        ${richCard("New visitors", t.visits, s.changes.visits, s.sparks.visits)}
-        ${richCard("Unique visitors", t.uniqueVisitors, s.changes.uniques, s.sparks.uniques)}
-        ${richCard("Subscribers", t.subscribers, s.changes.subs, s.sparks.subs)}
-        ${richCard("Visits today", t.visitsToday, undefined, s.sparks.visits)}
-        ${richCard("Content", t.posts + t.motion + t.products, undefined, undefined)}
+    <div class="dash-row">
+      <div class="panel grow live-panel">
+        <div class="panel-head"><h3><span class="live-dot"></span>Live visitors <span class="live-count" id="live-count">0</span></h3><span class="muted">on the site now · hover a visitor</span></div>
+        <div id="live-body"><div class="empty">Connecting…</div></div>
       </div>
-
-      <div class="dash-row">
-        <div class="panel grow">
-          <div class="panel-head"><h3>New visitors</h3><span class="muted">Last 7 days</span></div>
-          <div class="chart big">
-            ${s.series.map((d) => `<div class="bar-col"><span class="bar-val">${d.count}</span><div class="bar ${d.count === max ? "hot" : ""}" style="height:${Math.max(4, (d.count / max) * 100)}%"></div><span class="bar-lbl">${d.label}</span></div>`).join("")}
-          </div>
-        </div>
-        <div class="panel map-panel">
-          <div class="panel-head"><h3>Influence map</h3><span class="muted">Visitors</span></div>
-          <div id="vmap"></div>
-          <div class="country-list">
-            ${s.countries.length ? s.countries.map((c) => `<div class="crow"><span class="cflag">${c.flag}</span><span class="cname">${esc(c.name)}</span><span class="cbar"><span style="width:${c.pct}%"></span></span><b>${c.pct}%</b></div>`).join("") : '<div class="empty">No location data yet.</div>'}
-          </div>
-        </div>
-      </div>
-
-      <div class="panel suggestion">
-        <div class="sug-icon">💡</div>
-        <div class="sug-body">
-          <div class="sug-head">Smart suggestion — convert your top market</div>
-          <div class="sug-headline">${sg.headline}</div>
-          <ul class="sug-tips">${(sg.tips || []).map((tip) => `<li>${tip}</li>`).join("")}</ul>
-        </div>
-      </div>
-
       <div class="panel">
-        <div class="panel-head"><h3>Content overview</h3><span class="muted">click a card to manage</span></div>
+        <div class="panel-head"><h3>Top searches</h3><span class="muted">what people ask for</span></div>
+        ${s.topSearches && s.topSearches.length
+          ? `<div class="rank-list">${s.topSearches.map((x) => `<div class="rank-row"><span class="rk-q">${esc(x.q)}</span><b>${x.count}</b></div>`).join("")}</div>`
+          : '<div class="empty">No searches yet — chatbot questions &amp; searches show up here.</div>'}
+      </div>
+    </div>
+
+    <div class="dash-row">
+      <div class="panel grow">
+        <div class="panel-head"><h3>New visitors</h3><span class="muted">Last 7 days</span></div>
+        <div class="chart big">
+          ${s.series.map((d) => `<div class="bar-col"><span class="bar-val">${d.count}</span><div class="bar ${d.count === max ? "hot" : ""}" style="height:${Math.max(4, (d.count / max) * 100)}%"></div><span class="bar-lbl">${d.label}</span></div>`).join("")}
+        </div>
+      </div>
+      <div class="panel map-panel">
+        <div class="panel-head"><h3>Influence map</h3><span class="muted">Visitors</span></div>
+        <div id="vmap"></div>
+        <div class="country-list">
+          ${s.countries.length ? s.countries.map((c) => `<div class="crow"><span class="cflag">${c.flag}</span><span class="cname">${esc(c.name)}</span><span class="cbar"><span style="width:${c.pct}%"></span></span><b>${c.pct}%</b></div>`).join("") : '<div class="empty">No location data yet.</div>'}
+        </div>
+      </div>
+    </div>
+
+    <div class="panel suggestion">
+      <div class="sug-icon">💡</div>
+      <div class="sug-body">
+        <div class="sug-head">Smart suggestions</div>
+        <div class="sug-headline">${sg.headline}</div>
+        <ul class="sug-tips">${(sg.tips || []).map((tip) => `<li>${tip}</li>`).join("")}</ul>
+        ${s.contentSuggestions && s.contentSuggestions.length
+          ? `<div class="sug-head" style="margin-top:14px">📈 What to create next — based on demand</div><ul class="sug-tips">${s.contentSuggestions.map((i) => `<li>${esc(i.text)}</li>`).join("")}</ul>`
+          : ""}
+      </div>
+    </div>
+
+    <div class="dash-row">
+      <div class="panel grow">
+        <div class="panel-head"><h3>Most interacted content</h3><span class="muted">courses · articles · products people open</span></div>
+        ${s.topContent && s.topContent.length
+          ? `<div class="rank-list">${s.topContent.map((x) => `<div class="rank-row"><span class="rk-type">${esc(x.type)}</span><span class="rk-title">${esc(x.title)}</span><b>${x.count}</b></div>`).join("")}</div>`
+          : '<div class="empty">No content interactions tracked yet.</div>'}
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Content overview</h3><span class="muted">click to manage</span></div>
         <div class="content-grid">
           ${cc("Blog Posts", "posts", (c.posts || {}).count || 0, ((c.posts || {}).views || 0) + " views")}
           ${cc("Motion", "motion", (c.motion || {}).count || 0, ((c.motion || {}).views || 0) + " views")}
@@ -292,43 +325,65 @@ VIEWS.dashboard = async () => {
         </div>
         ${s.topArticles && s.topArticles.length ? `<div class="top-articles"><div class="ta-head">Most viewed articles</div>${s.topArticles.map((a) => `<div class="ta-row"><span class="ta-title">${esc(a.title)}</span><b>${a.views} views</b></div>`).join("")}</div>` : ""}
       </div>
+    </div>
 
-      <div class="dash-row">
-        <div class="panel">
-          <div class="panel-head"><h3>Traffic by page</h3></div>
-          <div class="donut-wrap">
-            <div class="donut" style="background:conic-gradient(${donutStops || "#222 0deg 360deg"})"><div class="donut-hole"><b>${t.visits}</b><span>visits</span></div></div>
-            <div class="donut-legend">
-              ${s.topPages.slice(0, 6).map((p, i) => `<div class="leg"><span class="dot" style="background:${palette[i % palette.length]}"></span><span class="lname">${esc(p.path)}</span><b>${p.count}</b></div>`).join("")}
-            </div>
+    <div class="dash-row">
+      <div class="panel">
+        <div class="panel-head"><h3>Traffic by page</h3></div>
+        <div class="donut-wrap">
+          <div class="donut" style="background:conic-gradient(${donutStops || "#222 0deg 360deg"})"><div class="donut-hole"><b>${t.visits}</b><span>visits</span></div></div>
+          <div class="donut-legend">
+            ${s.topPages.slice(0, 6).map((p, i) => `<div class="leg"><span class="dot" style="background:${palette[i % palette.length]}"></span><span class="lname">${esc(p.path)}</span><b>${p.count}</b></div>`).join("")}
           </div>
         </div>
-        <div class="panel grow">
-          <div class="panel-head"><h3>Recent activity</h3></div>
-          ${s.recent.length ? `<table class="table"><thead><tr><th>Page</th><th>From</th><th>When</th></tr></thead><tbody>
-            ${s.recent.map((r) => `<tr><td>${esc(r.path)}</td><td class="muted">${r.country ? r.country : "—"}</td><td class="muted">${timeAgo(r.ts)}</td></tr>`).join("")}
-          </tbody></table>` : '<div class="empty">No activity yet.</div>'}
-        </div>
-      </div>`;
+      </div>
+      <div class="panel grow">
+        <div class="panel-head"><h3>Recent activity</h3></div>
+        ${s.recent.length ? `<table class="table"><thead><tr><th>Page</th><th>From</th><th>When</th></tr></thead><tbody>
+          ${s.recent.map((r) => `<tr><td>${esc(r.path)}</td><td class="muted">${r.country ? r.country : "—"}</td><td class="muted">${timeAgo(r.ts)}</td></tr>`).join("")}
+        </tbody></table>` : '<div class="empty">No activity yet.</div>'}
+      </div>
+    </div>`;
 
-    // Render the world map (markers + choropleth) if the library loaded
-    if (window.jsVectorMap && document.getElementById("vmap")) {
-      const values = {}; s.countries.forEach((c) => (values[c.code] = c.count));
-      try {
-        new window.jsVectorMap({
-          selector: "#vmap", map: "world", zoomButtons: false, backgroundColor: "transparent",
-          regionStyle: { initial: { fill: "#222a3f" }, hover: { fill: "#33405e" } },
-          markers: s.countries.map((c) => ({ name: `${c.name}: ${c.count}`, coords: [c.lat, c.lng] })),
-          markerStyle: { initial: { fill: "#4770ff", stroke: "#0b0c11", "stroke-width": 1.5, r: 6 }, hover: { fill: "#7c4dff" } },
-          series: { regions: [{ attribute: "fill", scale: ["#2a3760", "#4770ff"], normalizeFunction: "polynomial", values }] },
-        });
-      } catch (e) { /* map optional */ }
-    }
+  wireDashboard(s);
+}
 
-    // content cards navigate to their section
-    $$("[data-go]").forEach((el) => el.addEventListener("click", () => go(el.dataset.go)));
-  } catch (e) { $("#view").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
-};
+function wireDashboard(s) {
+  if (window.jsVectorMap && document.getElementById("vmap")) {
+    const values = {}; s.countries.forEach((c) => (values[c.code] = c.count));
+    try {
+      new window.jsVectorMap({
+        selector: "#vmap", map: "world", zoomButtons: false, backgroundColor: "transparent",
+        regionStyle: { initial: { fill: "#222a3f" }, hover: { fill: "#33405e" } },
+        markers: s.countries.map((c) => ({ name: `${c.name}: ${c.count}`, coords: [c.lat, c.lng] })),
+        markerStyle: { initial: { fill: "#4770ff", stroke: "#0b0c11", "stroke-width": 1.5, r: 6 }, hover: { fill: "#7c4dff" } },
+        series: { regions: [{ attribute: "fill", scale: ["#2a3760", "#4770ff"], normalizeFunction: "polynomial", values }] },
+      });
+    } catch (e) { /* map optional */ }
+  }
+  $$("[data-go]").forEach((el) => el.addEventListener("click", () => go(el.dataset.go)));
+}
+
+// Real-time live-visitor list. Hovering a visitor reveals device / country / page.
+function renderLive(d) {
+  const cnt = document.getElementById("live-count");
+  if (cnt) cnt.textContent = d.count || 0;
+  const body = document.getElementById("live-body");
+  if (!body) return;
+  if (!d.users || !d.users.length) { body.innerHTML = '<div class="empty">No one on the site right now.</div>'; return; }
+  body.innerHTML = '<div class="live-grid">' + d.users.map((u) => `
+    <div class="live-user" tabindex="0">
+      <span class="lu-flag">${u.flag}</span>
+      <span class="lu-main"><span class="lu-page">${esc(u.page)}</span><span class="lu-sub">${esc(u.device)} · ${esc(u.countryName)}</span></span>
+      <span class="lu-ago">${u.lastSeconds}s</span>
+      <span class="live-tip" role="tooltip">
+        <span class="lt-page">${esc(u.page)}</span>
+        <span class="lt-line">${u.flag} ${esc(u.countryName)}</span>
+        <span class="lt-line">🖥️ ${esc(u.uaLabel)}</span>
+        <span class="lt-meta">${u.views} page${u.views === 1 ? "" : "s"} · ${u.onSiteSeconds}s on site · active ${u.lastSeconds}s ago</span>
+      </span>
+    </div>`).join("") + "</div>";
+}
 function timeAgo(ts) {
   const s = Math.floor((Date.now() - ts) / 1000);
   if (s < 60) return s + "s ago";

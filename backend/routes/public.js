@@ -5,6 +5,24 @@ const geoip = require('geoip-lite');
 const { readJSON, writeJSON } = require('../lib/store');
 const { chat } = require('../lib/chatbot');
 const memberships = require('../lib/memberships');
+const presence = require('../lib/presence');
+
+// Shared client-IP + country resolution (Cloudflare header first, then GeoIP).
+const clientIp = (req) => (req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || '').replace(/^::ffff:/, '');
+function geoOf(req) {
+  const ip = clientIp(req);
+  const geo = geoip.lookup(ip); // null on localhost/private
+  const cf = String(req.headers['cf-ipcountry'] || '').toUpperCase();
+  const country = (cf.length === 2 && cf !== 'XX' && cf !== 'T1') ? cf : (geo ? geo.country : null);
+  return { ip, country, ll: geo ? geo.ll : null };
+}
+// Append an analytics event, keeping the store bounded (last 10k).
+function pushEvent(ev) {
+  const events = readJSON('analytics.json', []);
+  events.push(ev);
+  if (events.length > 10000) events.splice(0, events.length - 10000);
+  writeJSON('analytics.json', events);
+}
 
 // Drafts (published === false) are hidden from the public; existing posts with
 // no `published` field are treated as published for backward compatibility.
@@ -94,6 +112,14 @@ router.post('/chat', async (req, res) => {
   try {
     const messages = Array.isArray(req.body && req.body.messages) ? req.body.messages : [];
     const name = String((req.body && req.body.name) || '').trim().slice(0, 80);
+    // Log the visitor's latest question as a search signal (what people want).
+    try {
+      const lastUser = [...messages].reverse().find((m) => m && m.role === 'user' && m.content);
+      if (lastUser) {
+        const g = geoOf(req);
+        pushEvent({ type: 'search', q: String(lastUser.content).slice(0, 120), source: 'chat', ip: g.ip, country: g.country, ts: Date.now() });
+      }
+    } catch (_) {}
     const result = await chat(messages, { name });
     res.json(result);
   } catch (e) {
@@ -132,6 +158,45 @@ router.post('/lead', (req, res) => {
   if (leads.length > 50000) leads.splice(0, leads.length - 50000);
   writeJSON('leads.json', leads);
   res.json({ ok: true, id: lead.id });
+});
+
+// ---------- Live presence (heartbeat) ----------
+// The page pings this every ~15s. We keep an in-memory picture of who is on the
+// site right now (path + device + country) for the admin "Live" panel.
+router.post('/presence/ping', (req, res) => {
+  const sid = String((req.body && req.body.sid) || '').slice(0, 64);
+  if (!sid) return res.status(400).json({ error: 'sid required' });
+  const g = geoOf(req);
+  presence.ping(sid, {
+    path: String((req.body && req.body.path) || '/').slice(0, 200),
+    ua: req.headers['user-agent'] || '',
+    ip: g.ip, country: g.country, ll: g.ll,
+  });
+  res.json({ ok: true });
+});
+// Beacon fired on page-hide so a leaver drops off the live list promptly.
+router.post('/presence/leave', (req, res) => {
+  presence.drop(String((req.body && req.body.sid) || '').slice(0, 64));
+  res.json({ ok: true });
+});
+
+// ---------- Interaction / search events ----------
+// Explicit signals: a card click, a search submission, a topic open. Stored as
+// typed analytics events (kept separate from page views in the stats endpoint).
+router.post('/track/event', (req, res) => {
+  const b = req.body || {};
+  const type = ['search', 'click', 'interaction'].includes(b.type) ? b.type : 'interaction';
+  const g = geoOf(req);
+  pushEvent({
+    type,
+    q: String(b.q || '').slice(0, 120),
+    label: String(b.label || '').slice(0, 160),
+    kind: String(b.kind || '').slice(0, 40),
+    itemId: String(b.id || '').slice(0, 80),
+    path: String(b.path || '').slice(0, 200),
+    ip: g.ip, country: g.country, ts: Date.now(),
+  });
+  res.json({ ok: true });
 });
 
 // Visit tracking

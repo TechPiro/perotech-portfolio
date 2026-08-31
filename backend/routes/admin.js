@@ -52,6 +52,7 @@ const { countryName, flagEmoji, suggestionFor } = require('../lib/geo');
 const { sendAccessEmail, grantSubscription, ensurePaymentPlan } = require('../lib/grant');
 const memberships = require('../lib/memberships');
 const { chargeFor } = require('../lib/grant');
+const presence = require('../lib/presence');
 
 // Subscribers live in DATA_DIR (persistent) via the shared store.
 const readSubs = () => readJSON('subscribers.json', []);
@@ -456,7 +457,11 @@ router.delete('/leads/:id', (req, res) => {
 
 // ---------- Analytics / dashboard stats ----------
 router.get('/stats', (req, res) => {
-  const events = readJSON('analytics.json', []);
+  const allEvents = readJSON('analytics.json', []);
+  // Page views drive visit metrics; typed events are searches / interactions.
+  const events = allEvents.filter((e) => !e.type || e.type === 'view');
+  const searchEvents = allEvents.filter((e) => e.type === 'search');
+  const interactionEvents = allEvents.filter((e) => e.type === 'click' || e.type === 'interaction');
   const subs = readSubs();
   const dayMs = 86400000;
   const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
@@ -555,7 +560,43 @@ router.get('/stats', (req, res) => {
   const suggestion = suggestionFor(topCountry);
   countries = countries.slice(0, 8);
 
+  // ---- what people search for (chat questions + explicit searches) ----
+  const cap = (s) => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
+  const searchCounts = {};
+  searchEvents.forEach((e) => { const q = String(e.q || '').trim().toLowerCase(); if (q.length > 1) searchCounts[q] = (searchCounts[q] || 0) + 1; });
+  const topSearches = Object.entries(searchCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([q, count]) => ({ q, count }));
+
+  // ---- most-interacted content (resolve views + clicks to real titles) ----
+  const courseBySlug = {}; readJSON('courses.json', []).forEach((c) => { courseBySlug[c.slug || c.id] = c.title; });
+  const postByKey = {}; posts.forEach((p) => { if (p.shortId) postByKey[p.shortId] = p.title; postByKey[p.slug || p.id] = p.title; });
+  const hits = {};
+  const add = (type, title) => { if (!title) return; const k = type + ' ' + title; hits[k] = (hits[k] || 0) + 1; };
+  events.forEach((e) => {
+    const p = e.path || ''; let m;
+    if ((m = p.match(/^\/learn\/([^/?#]+)/))) add('Course', courseBySlug[decodeURIComponent(m[1])] || decodeURIComponent(m[1]));
+    else if ((m = p.match(/^\/blog\/([^/?#]+)/))) add('Article', postByKey[decodeURIComponent(m[1])] || decodeURIComponent(m[1]));
+    else if ((m = p.match(/article\.html\?slug=([^&]+)/))) add('Article', postByKey[decodeURIComponent(m[1])] || decodeURIComponent(m[1]));
+  });
+  interactionEvents.forEach((e) => { if (e.label) add(cap(e.kind || 'Item'), e.label); });
+  const topContent = Object.entries(hits).map(([k, count]) => { const [type, title] = k.split(' '); return { type, title, count }; })
+    .sort((a, b) => b.count - a.count).slice(0, 8);
+
+  // ---- intelligent "create more" ideas: demand (searches/views) vs supply ----
+  const supply = [
+    ...posts.map((p) => ((p.title || '') + ' ' + (p.category || '') + ' ' + (p.tags || []).join(' ')).toLowerCase()),
+    ...readJSON('courses.json', []).map((c) => ((c.title || '') + ' ' + (c.category || '')).toLowerCase()),
+  ];
+  const covered = (term) => supply.some((s) => s.includes(term));
+  const contentSuggestions = [];
+  topSearches.forEach(({ q, count }) => {
+    if (count >= 2 && !covered(q) && contentSuggestions.length < 5)
+      contentSuggestions.push({ kind: 'gap', text: `Create content on “${q}” — asked ${count}× and nothing on your site matches it yet.`, metric: count });
+  });
+  if (topContent[0])
+    contentSuggestions.push({ kind: 'hot', text: `“${topContent[0].title}” is your most-opened ${topContent[0].type.toLowerCase()} (${topContent[0].count} opens) — a follow-up or deeper series would likely land.`, metric: topContent[0].count });
+
   res.json({
+    live: presence.count(),
     totals: {
       visits: events.length, visitsToday, uniqueVisitors,
       subscribers: subs.length,
@@ -568,8 +609,39 @@ router.get('/stats', (req, res) => {
     series, topPages, recent,
     countries, geoTotal, suggestion,
     content, topArticles,
+    topSearches, topContent, contentSuggestions,
     mailReady: smtpConfigured(),
   });
+});
+
+// ---------- Live visitors (real-time presence) ----------
+router.get('/live', (req, res) => {
+  const courseBySlug = {}; readJSON('courses.json', []).forEach((c) => { courseBySlug[c.slug || c.id] = c.title; });
+  const posts = readJSON('posts.json', []); const postByKey = {};
+  posts.forEach((p) => { if (p.shortId) postByKey[p.shortId] = p.title; postByKey[p.slug || p.id] = p.title; });
+  const SECTION = { '/learn': 'Courses', '/blog': 'Blog', '/products': 'Products', '/motion': 'Motion', '/pricing': 'Pricing', '/chat': 'Chat', '/newsletter': 'Newsletter', '/learn-dashboard': 'Student dashboard', '/student-profile': 'Student profile', '/admin': 'Admin' };
+  const humanize = (path) => {
+    path = String(path || '/'); let m;
+    if (path === '' || path === '/' || /^\/index\.html/.test(path)) return 'Home';
+    if ((m = path.match(/^\/learn\/([^/?#]+)/))) return 'Course: ' + (courseBySlug[decodeURIComponent(m[1])] || decodeURIComponent(m[1]));
+    if ((m = path.match(/^\/blog\/([^/?#]+)/))) return 'Article: ' + (postByKey[decodeURIComponent(m[1])] || decodeURIComponent(m[1]));
+    if ((m = path.match(/article\.html\?slug=([^&]+)/))) return 'Article: ' + (postByKey[decodeURIComponent(m[1])] || decodeURIComponent(m[1]));
+    const base = '/' + (path.split('?')[0].split('/')[1] || '');
+    return SECTION[base] || path;
+  };
+  const users = presence.list().map((u) => {
+    const d = presence.parseUA(u.ua);
+    return {
+      sid: u.sid.slice(0, 8), device: d.device, os: d.os, browser: d.browser, uaLabel: d.label,
+      country: u.country || null, flag: u.country ? flagEmoji(u.country) : '🌐',
+      countryName: u.country ? countryName(u.country) : 'Unknown',
+      path: u.path, page: humanize(u.path),
+      lastSeconds: Math.round((Date.now() - u.last) / 1000),
+      onSiteSeconds: Math.round((Date.now() - u.first) / 1000),
+      views: u.views,
+    };
+  });
+  res.json({ count: users.length, users });
 });
 
 // ---------- Bulk email ----------
