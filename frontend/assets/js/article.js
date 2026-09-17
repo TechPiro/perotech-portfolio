@@ -117,6 +117,24 @@
       facade.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); load(); } });
     });
   }
+  // Free-standing call-to-action button block: its own name, its own logo, and it
+  // sits wherever you placed it in the block order (aligned left/centre/right/full).
+  function buttonBlock(b) {
+    const label = String(b.label || "").trim();
+    if (!label) return "";
+    const href = String(b.url || "").trim();
+    const align = ["left", "center", "right", "full"].indexOf(b.align) > -1 ? b.align : "left";
+    const style = ["neon", "amber", "accent", "outline"].indexOf(b.style) > -1 ? b.style : "neon";
+    const logo = window.PTIcons ? PTIcons.markup(b.icon, b.iconSrc, "ptb-ico") : "";
+    const ext = /^https?:\/\//i.test(href) ? ' target="_blank" rel="noopener"' : "";
+    const inner =
+      (logo ? `<span class="ptb-ic">${logo}</span>` : "") +
+      `<span class="ptb-mid"><span class="ptb-label">${esc(label)}</span>${b.note ? `<span class="ptb-note">${esc(b.note)}</span>` : ""}</span>` +
+      `<span class="ptb-arr" aria-hidden="true">→</span>`;
+    return href
+      ? `<div class="ptb-wrap ptb-${align}"><a class="ptb ptb-${style}" href="${attr(href)}"${ext}>${inner}</a></div>`
+      : `<div class="ptb-wrap ptb-${align}"><span class="ptb ptb-${style}">${inner}</span></div>`;
+  }
   function codeBlock(b) {
     const lang = b.language || "plaintext";
     return `<div class="bcode"><div class="bcode-head"><span>${esc(lang)}</span><button class="bcode-copy" type="button">Copy</button></div><pre><code class="language-${esc(lang)}">${esc(b.code)}</code></pre></div>`;
@@ -133,6 +151,7 @@
       case "quote": return `<blockquote class="bq">${b.text}</blockquote>`;
       case "image": return `<figure class="bfig"><div class="bfig-media"><img src="${attr(b.src)}" alt="${esc(b.caption || "")}" loading="lazy" /><a class="bimg-dl" href="${attr(b.src)}" download title="Download image" aria-label="Download image">${dlIcon}</a></div>${b.caption ? `<figcaption>${esc(b.caption)}</figcaption>` : ""}</figure>`;
       case "video": return videoBlock(b);
+      case "button": return buttonBlock(b);
       case "code": return codeBlock(b);
       case "file": return fileBlock(b);
       default: return "";

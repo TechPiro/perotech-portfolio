@@ -422,7 +422,7 @@ VIEWS.posts = async () => {
   wireDraftsPanel("post", (data) => postEditor(data, { fromDraft: true }), () => go("posts"));
 };
 
-const BLOCK_TYPES = ["paragraph", "heading", "subheading", "list", "quote", "image", "video", "code", "file"];
+const BLOCK_TYPES = ["paragraph", "heading", "subheading", "list", "quote", "image", "video", "button", "code", "file"];
 let __blkUid = 0;
 // Upload-enabled input for a block field (lets you pick a file from your device).
 function blkUpload(label, fieldName, val, accept, opts) {
@@ -439,6 +439,28 @@ function blkUpload(label, fieldName, val, accept, opts) {
     <div class="upload-prev" id="${uid}-prev">${prev}</div>
   </div>`;
 }
+// Logo/icon picker: a preset brand mark, or upload a real logo image (which wins).
+// `attrs` is the data-* attribute used for the field (data-field / data-rfield).
+function iconPicker(attrs, keyField, srcField, keyVal, srcVal, label) {
+  const opts = (window.PTIcons ? window.PTIcons.list : []);
+  const uid = "ico" + ++__blkUid;
+  const prev = srcVal ? `<img src="${/^https?:/i.test(srcVal) ? esc(srcVal) : "/" + esc(srcVal)}" alt="" onerror="this.style.display='none'"/>` : "";
+  return `<div class="grid-2">
+    <div class="field"><label>${label || "Logo / icon"}</label>
+      <select class="select" ${attrs}="${keyField}">
+        <option value="">None</option>
+        ${opts.map((o) => `<option value="${esc(o.key)}" ${keyVal === o.key ? "selected" : ""}>${esc(o.label)}</option>`).join("")}
+      </select>
+    </div>
+    <div class="field"><label>…or upload a real brand logo (overrides the picker)</label>
+      <div class="upload-row">
+        <input class="input" id="${uid}" ${attrs}="${srcField}" value="${esc(srcVal)}" placeholder="Upload a PNG/SVG logo → or paste a URL" />
+        <label class="btn ghost sm upload-label">Upload<input type="file" accept="image/*" data-target="${uid}" style="display:none"></label>
+      </div>
+      <div class="upload-prev" id="${uid}-prev">${prev}</div>
+    </div>
+  </div>`;
+}
 function blockCard(b) {
   b = b || { type: "paragraph" };
   const f = (label, field, val, ta) => ta
@@ -450,6 +472,19 @@ function blockCard(b) {
   else if (b.type === "list") fields = f("Items (one per line)", "items", (b.items || []).join("\n"), true);
   else if (b.type === "image") fields = blkUpload("Image — upload from your device, or paste a URL", "src", b.src || "", "image/*") + f("Caption", "caption", b.caption || "");
   else if (b.type === "video") fields = `<div class="field"><label>Kind</label><select class="select" data-field="kind">${["mp4", "youtube", "vimeo"].map((k) => `<option ${b.kind === k ? "selected" : ""}>${k}</option>`).join("")}</select></div>` + blkUpload("Video — upload an MP4 from your device, or paste a YouTube/Vimeo ID", "src", b.src || "", "video/*") + f("Caption", "caption", b.caption || "");
+  else if (b.type === "button") {
+    const styles = [["neon", "Neon green"], ["amber", "Neon amber"], ["accent", "Solid accent"], ["outline", "Outline"]];
+    const aligns = [["left", "Left"], ["center", "Centre"], ["right", "Right"], ["full", "Full width"]];
+    fields =
+      f("Button name (the text people read on the button)", "label", b.label || "") +
+      f("Link — where the button goes (URL or /path)", "url", b.url || "") +
+      `<div class="grid-2">
+        <div class="field"><label>Style</label><select class="select" data-field="style">${styles.map(([v, l]) => `<option value="${v}" ${(b.style || "neon") === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+        <div class="field"><label>Position on the page</label><select class="select" data-field="align">${aligns.map(([v, l]) => `<option value="${v}" ${(b.align || "left") === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+      </div>` +
+      iconPicker("data-field", "icon", "iconSrc", b.icon || "", b.iconSrc || "", "Logo / icon on the button") +
+      f("Small line under the name (optional)", "note", b.note || "");
+  }
   else if (b.type === "code") fields = f("Language", "language", b.language || "js") + f("Code", "code", b.code || "", true);
   else if (b.type === "file") {
     const nmId = "blk" + ++__blkUid, szId = "blk" + ++__blkUid;
@@ -762,7 +797,7 @@ function resourceCard(r) {
   const rid = "R" + ++__resUid, urlId = rid + "-url", nameId = rid + "-name", sizeId = rid + "-size";
   return `<div class="res-card" data-rid="${rid}">
     <div class="grid-2">
-      <div class="field"><label>Name</label><input class="input" id="${nameId}" data-rfield="name" value="${esc(r.name || "")}" placeholder="e.g. Project source files (.zip)"/></div>
+      <div class="field"><label>Button name (shown big on the button)</label><input class="input" id="${nameId}" data-rfield="name" value="${esc(r.name || "")}" placeholder="e.g. DecartLive Pro 2.5 Windows"/></div>
       <div class="field"><label>Size (optional)</label><input class="input" id="${sizeId}" data-rfield="size" value="${esc(r.size || "")}" placeholder="auto-filled on upload"/></div>
     </div>
     <div class="field"><label>File or link</label>
@@ -771,13 +806,14 @@ function resourceCard(r) {
         <label class="btn ghost sm upload-label">Upload<input type="file" accept="*/*" data-target="${urlId}" data-name-target="${nameId}" data-size-target="${sizeId}" style="display:none"></label>
       </div>
     </div>
+    ${iconPicker("data-rfield", "icon", "iconSrc", r.icon || "", r.iconSrc || "", "Logo / icon on the button")}
     <div style="text-align:right"><button type="button" class="btn danger sm" data-rremove>Remove</button></div>
   </div>`;
 }
 function collectResources(container) {
   return $$(".res-card", container).map((card) => {
     const g = (k) => { const el = card.querySelector(`[data-rfield="${k}"]`); return el ? el.value.trim() : ""; };
-    return { name: g("name"), url: g("url"), size: g("size") };
+    return { name: g("name"), url: g("url"), size: g("size"), icon: g("icon"), iconSrc: g("iconSrc") };
   }).filter((r) => r.url && r.name);
 }
 function courseEditor(c, opts) {

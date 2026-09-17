@@ -237,14 +237,20 @@
 .bimg-dl:hover { background: var(--bg-accent); transform: translateY(-1px); }
 @media (hover: none) { .bimg-dl { opacity: 1; } } /* always visible on touch devices */
 
-.article-body .bvideo { margin: 26px 0; }
-.article-body .bvideo .bvideo-frame {
+/* Video blocks render identically in articles and in lesson content. */
+.article-body .bvideo, .lesson-content .bvideo { margin: 26px 0; }
+.article-body .bvideo .bvideo-frame, .lesson-content .bvideo .bvideo-frame {
   position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; background: #000;
 }
-.article-body .bvideo video, .article-body .bvideo iframe {
+.article-body .bvideo video, .article-body .bvideo iframe,
+.lesson-content .bvideo video, .lesson-content .bvideo iframe {
   position: absolute; inset: 0; width: 100%; height: 100%; border: none;
 }
-.article-body .bvideo figcaption { text-align: center; color: #7c8395; font-size: 0.85rem; margin-top: 10px; }
+.article-body .bvideo figcaption, .lesson-content .bvideo figcaption {
+  text-align: center; color: #7c8395; font-size: 0.85rem; margin-top: 10px;
+}
+/* The generic image rule in learn.css must not shrink the facade poster. */
+.lesson-content .bvideo img { margin: 0; border-radius: 0; }
 
 /* ---------- Vimeo-style video facade (blog + course, shared) ---------- */
 .video-facade { position: absolute; inset: 0; display: grid; place-items: center; cursor: pointer; background: #05060a; overflow: hidden; }
@@ -443,4 +449,47 @@ body.ptl-lock { overflow: hidden; }
   .blog-card-body { padding: 14px 15px 18px; }
   .article-body .bfile { flex-wrap: wrap; }
   .article-body .bfile .bfile-dl { width: 100%; }
+}
+
+
+/* ---------- "button" content block (articles + lessons, shared) ----------
+   A named call-to-action you drop anywhere in the block order, optionally
+   carrying a brand logo, and positioned left / centre / right / full width. */
+.ptb-wrap { display: flex; margin: 22px 0; }
+.ptb-left { justify-content: flex-start; }
+.ptb-center { justify-content: center; }
+.ptb-right { justify-content: flex-end; }
+.ptb-full .ptb { width: 100%; max-width: none; }
+.ptb {
+  position: relative; display: inline-flex; align-items: center; gap: 12px; max-width: 100%;
+  padding: 12px 22px; border-radius: 40px; text-decoration: none; cursor: pointer;
+  font: inherit; color: #fff; border: 2px solid transparent; overflow: hidden;
+  transition: transform .18s ease, box-shadow .25s ease, background .2s ease;
+}
+.ptb:hover { transform: translateY(-2px); }
+.ptb-ic { flex: 0 0 auto; display: inline-flex; align-items: center; }
+/* Specific enough to beat the generic ".lesson-content img" / ".article-body img" rules. */
+.ptb .ptb-ico { width: 24px; height: 24px; display: block; margin: 0; border-radius: 4px; max-width: none; }
+.ptb-ico svg { width: 100%; height: 100%; display: block; }
+.ptb-ico-img { object-fit: contain; }
+.ptb-mid { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ptb-label { font-weight: 800; font-size: 1.02rem; line-height: 1.2; color: #fff; }
+.ptb-note { font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .85; }
+.ptb-arr { flex: 0 0 auto; font-size: 1.1rem; opacity: .9; }
+/* styles */
+.ptb-neon { border-color: #34d17a;
+  background: radial-gradient(130% 130% at 50% 50%, rgba(12,28,20,.35), rgba(3,10,7,.94)), linear-gradient(180deg, #08221a, #030b08);
+  box-shadow: 0 0 20px rgba(52,209,122,.45), inset 0 0 24px rgba(52,209,122,.12); }
+.ptb-neon:hover { box-shadow: 0 0 30px rgba(52,209,122,.8), 0 0 80px rgba(52,209,122,.28), inset 0 0 26px rgba(52,209,122,.18); }
+.ptb-amber { border-color: #e0a63a;
+  background: radial-gradient(130% 130% at 50% 50%, rgba(30,22,8,.35), rgba(12,8,3,.94)), linear-gradient(180deg, #241a08, #0d0803);
+  box-shadow: 0 0 20px rgba(224,166,58,.45), inset 0 0 24px rgba(224,166,58,.12); }
+.ptb-amber:hover { box-shadow: 0 0 30px rgba(224,166,58,.8), 0 0 80px rgba(224,166,58,.28), inset 0 0 26px rgba(224,166,58,.18); }
+.ptb-accent { background: var(--bg-accent, #4770ff); border-color: transparent; box-shadow: 0 10px 26px -10px rgba(71,112,255,.8); }
+.ptb-accent:hover { box-shadow: 0 14px 34px -10px rgba(71,112,255,.95); }
+.ptb-outline { background: transparent; border-color: #3a3f4d; }
+.ptb-outline:hover { border-color: var(--bg-accent, #4770ff); background: rgba(71,112,255,.08); }
+@media (max-width: 560px) {
+  .ptb { padding: 11px 16px; gap: 10px; }
+  .ptb-label { font-size: .95rem; }
 }

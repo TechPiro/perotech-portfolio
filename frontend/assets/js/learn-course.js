@@ -27,6 +27,8 @@
       case "list": return `<ul>${(b.items || []).map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`;
       case "quote": return `<blockquote>${esc(b.text || "")}</blockquote>`;
       case "image": return `<figure><img src="${attr(b.src)}" alt="${esc(b.caption || "")}" loading="lazy"/>${b.caption ? `<figcaption>${esc(b.caption)}</figcaption>` : ""}</figure>`;
+      case "video": return videoBlockHtml(b);
+      case "button": return buttonBlockHtml(b);
       case "code": return `<pre><code>${esc(b.code || "")}</code></pre>`;
       case "file": return `<a class="bfile" href="${attr(b.src)}" download><span>📎</span><span>${esc(b.name || "Download")}${b.size ? " · " + esc(b.size) : ""}</span><span class="bf-dl">Download</span></a>`;
       default: return "";
@@ -52,6 +54,50 @@
     return "";
   }
   const playSvg = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+
+  // A video dropped into lesson content (admin "+ video" block). Same slick facade
+  // as the lesson player: the provider iframe only loads once you hit play.
+  function videoBlockHtml(b) {
+    if (!b || !b.src) return "";
+    const cap = b.caption ? `<figcaption>${esc(b.caption)}</figcaption>` : "";
+    if (b.kind === "youtube" || b.kind === "vimeo") {
+      const poster = posterFor(b);
+      const fb = b.kind === "youtube" ? `https://i.ytimg.com/vi/${ytId(b.src)}/hqdefault.jpg` : "";
+      return `<figure class="bvideo"><div class="bvideo-frame">
+        <div class="video-facade" data-embed="${esc(embedUrl(b))}" role="button" tabindex="0" aria-label="Play video">
+          ${poster ? `<img class="vf-poster" src="${esc(poster)}" alt=""${fb ? ` onerror="this.onerror=null;this.src='${fb}'"` : ""}/>` : ""}
+          <span class="vf-play">${playSvg}</span>
+        </div>
+      </div>${cap}</figure>`;
+    }
+    // Self-hosted mp4 uploaded with the block — served from /uploads (or Cloudinary).
+    const poster = b.poster ? ` poster="${esc(attr(b.poster))}"` : "";
+    return `<figure class="bvideo"><div class="bvideo-frame">
+      <div class="video-facade vf-native" aria-label="Video">
+        <video class="vf-video" src="${esc(attr(b.src))}"${poster} preload="metadata" playsinline controls></video>
+        <button type="button" class="vf-play" aria-label="Play video">${playSvg}</button>
+      </div>
+    </div>${cap}</figure>`;
+  }
+
+  // Free-standing call-to-action button block: its own name, its own logo, and it
+  // sits wherever you placed it in the block order (aligned left/centre/right/full).
+  function buttonBlockHtml(b) {
+    const label = String(b.label || "").trim();
+    if (!label) return "";
+    const href = String(b.url || "").trim();
+    const align = ["left", "center", "right", "full"].indexOf(b.align) > -1 ? b.align : "left";
+    const style = ["neon", "amber", "accent", "outline"].indexOf(b.style) > -1 ? b.style : "neon";
+    const logo = window.PTIcons ? PTIcons.markup(b.icon, b.iconSrc, "ptb-ico") : "";
+    const ext = /^https?:\/\//i.test(href) ? ' target="_blank" rel="noopener"' : "";
+    const inner =
+      (logo ? `<span class="ptb-ic">${logo}</span>` : "") +
+      `<span class="ptb-mid"><span class="ptb-label">${esc(label)}</span>${b.note ? `<span class="ptb-note">${esc(b.note)}</span>` : ""}</span>` +
+      `<span class="ptb-arr" aria-hidden="true">→</span>`;
+    return href
+      ? `<div class="ptb-wrap ptb-${align}"><a class="ptb ptb-${style}" href="${esc(attr(href))}"${ext}>${inner}</a></div>`
+      : `<div class="ptb-wrap ptb-${align}"><span class="ptb ptb-${style}">${inner}</span></div>`;
+  }
 
   function lessonVideoHtml(lesson) {
     const v = lesson.video; if (!v) return "";
@@ -86,19 +132,20 @@
   // Swap the facade for the real player on click / Enter / Space. A transparent
   // shield covers the player's top bar (video title, Share, "Watch on YouTube")
   // so those can't be clicked through to open the video/channel on YouTube.
-  function wireFacade(frame) {
-    const facade = frame.querySelector(".video-facade");
-    if (!facade) return;
-    // Native mp4: persistent styled button that toggles with the video's play/pause.
-    if (facade.classList.contains("vf-native")) { wireNative(facade); return; }
-    // External (YouTube/Vimeo): swap the facade for the provider iframe on click.
-    const load = () => {
-      frame.innerHTML =
-        `<iframe src="${facade.dataset.embed}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>` +
-        `<span class="yt-shield" aria-hidden="true"></span>`;
-    };
-    facade.addEventListener("click", load);
-    facade.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); load(); } });
+  function wireFacade(scope) {
+    if (!scope) return;
+    scope.querySelectorAll(".video-facade").forEach((facade) => {
+      // Native mp4: persistent styled button that toggles with the video's play/pause.
+      if (facade.classList.contains("vf-native")) { wireNative(facade); return; }
+      // External (YouTube/Vimeo): swap the facade for the provider iframe on click.
+      const load = () => {
+        facade.parentElement.innerHTML =
+          `<iframe src="${facade.dataset.embed}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>` +
+          `<span class="yt-shield" aria-hidden="true"></span>`;
+      };
+      facade.addEventListener("click", load);
+      facade.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); load(); } });
+    });
   }
   // Keep the big Vimeo-style button in sync with a native <video>: it plays on
   // click, hides while playing, and comes back whenever the video is paused/ends.
@@ -130,6 +177,7 @@
     body.innerHTML = `<h2 style="color:#fff;margin:18px 0 8px">${esc(lesson.title)}</h2>` +
       (lesson.summary ? `<p style="color:#9aa0ae;margin:0 0 16px">${esc(lesson.summary)}</p>` : "") +
       `<div class="lesson-content">${(lesson.blocks || []).map(renderBlock).join("")}</div>`;
+    wireFacade(body);
     document.querySelectorAll(".lesson-row").forEach((r) => r.classList.toggle("active", r.dataset.lid === selectedId));
   }
 
@@ -138,16 +186,22 @@
   const dlBox = '<svg class="dl-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v8a1 1 0 0 1-.53.88l-8 4.5a1 1 0 0 1-.94 0l-8-4.5A1 1 0 0 1 3 16V8a1 1 0 0 1 .53-.88l8-4.5a1 1 0 0 1 .94 0l8 4.5A1 1 0 0 1 21 8Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg>';
   const dlArrow = '<svg class="dl-arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
   function resRow(r) {
-    const meta = r.size ? ` · ${esc(r.size)}` : "";
-    const sub = `${esc(r.name || "File")}${meta} | SECURE ACCESS`;
+    // The headline is the material's real name (e.g. "DecartLive Pro 2.5 Windows");
+    // what to do with it moves to the small line underneath.
+    const title = esc(r.name || "File");
+    const logo = window.PTIcons ? PTIcons.markup(r.icon, r.iconSrc, "dl-logo") : "";
+    const size = r.size ? esc(r.size) : "";
+    const subLine = (lead) => [lead, size, "Secure access"].filter(Boolean).join(" · ");
+    // A chosen logo replaces the stock mark; without one we keep the terminal chip.
+    const mark = (fallback) => `<span class="dl-ic${logo ? " has-logo" : ""}">${logo || fallback}${logo ? "" : '<span class="dl-term">&gt;_</span>'}</span>`;
     if (!r.url) return `<button type="button" class="dl-now locked" data-buy-res>
-      <span class="dl-ic">${lock}<span class="dl-term">&gt;_</span></span>
-      <span class="dl-mid"><span class="dl-title">BUY TO DOWNLOAD</span><span class="dl-sub">${sub}</span></span>
+      ${mark(lock)}
+      <span class="dl-mid"><span class="dl-title">${title}</span><span class="dl-sub">${subLine("Buy to download")}</span></span>
       <span class="dl-arr-wrap">${lock}</span>
     </button>`;
     return `<a class="dl-now" href="${esc(attr(r.url))}" target="_blank" rel="noopener" download>
-      <span class="dl-ic">${dlBox}<span class="dl-term">&gt;_</span></span>
-      <span class="dl-mid"><span class="dl-title">DOWNLOAD NOW</span><span class="dl-sub">${sub}</span></span>
+      ${mark(dlBox)}
+      <span class="dl-mid"><span class="dl-title">${title}</span><span class="dl-sub">${subLine("Download now")}</span></span>
       <span class="dl-arr-wrap">${dlArrow}</span>
     </a>`;
   }

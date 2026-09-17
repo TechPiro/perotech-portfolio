@@ -145,10 +145,10 @@ const courseCard = (c) => ({
   authorBio: c.authorBio || '', language: c.language || 'English',
   // Downloadable resources shown LOCKED (names/sizes only, never the URL) until
   // the buyer is entitled — the entitled endpoint re-adds the real URLs.
-  resources: (c.resources || []).filter((r) => r && r.url && r.name).map((r) => ({ name: r.name, size: r.size || '' })),
+  resources: (c.resources || []).filter((r) => r && r.url && r.name).map((r) => ({ name: r.name, size: r.size || '', icon: r.icon || '', iconSrc: r.iconSrc || '' })),
 });
 // Full resources (with download URLs) — only for entitled buyers.
-const fullResources = (c) => (c.resources || []).filter((r) => r && r.url && r.name).map((r) => ({ name: r.name, url: r.url, size: r.size || '' }));
+const fullResources = (c) => (c.resources || []).filter((r) => r && r.url && r.name).map((r) => ({ name: r.name, url: r.url, size: r.size || '', icon: r.icon || '', iconSrc: r.iconSrc || '' }));
 // A lesson with content only when unlocked (entitled) or it's a free preview.
 function detailLesson(l, unlocked) {
   const base = lessonMeta(l);
